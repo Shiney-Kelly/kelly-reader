@@ -39,32 +39,58 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.kelly.reader.R
+import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.ui.components.AppIcons
 import com.kelly.reader.ui.components.ProgressBar
 import com.kelly.reader.ui.theme.AppTheme
+import com.kelly.reader.ui.theme.FIGTREE
+import com.kelly.reader.ui.theme.LITERATA
+import com.kelly.reader.ui.theme.ReaderTheme
 import com.kelly.reader.ui.theme.SCRIM
 
 private val DRAWER_WIDTH = 310.dp
 private val DRAWER_SHAPE = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
 private val CONTROL_SHAPE = RoundedCornerShape(10.dp)
+private val SWATCH_SHAPE = RoundedCornerShape(12.dp)
 
 /**
- * The reading settings drawer: slides in from the right over a scrim. The sections sit in
- * [content], the book card and the back button are always there.
+ * What the drawer's controls do. Each call goes to the settings repository through the
+ * ViewModel.
+ */
+data class SettingsActions(
+    val onSmallerText: () -> Unit,
+    val onLargerText: () -> Unit,
+    val onLineSpacing: (LineSpacing) -> Unit,
+    val onFont: (ReaderFont) -> Unit,
+    val onTheme: (ReaderTheme) -> Unit,
+) {
+
+    companion object {
+        val NONE = SettingsActions({}, {}, {}, {}, {})
+    }
+}
+
+/**
+ * The reading settings drawer: slides in from the right over a scrim, with the book card,
+ * the controls and the back to shelf button.
  */
 @Composable
 fun SettingsDrawer(
     open: Boolean,
     uiState: ReaderUiState,
+    theme: ReaderTheme,
+    actions: SettingsActions,
     onClose: () -> Unit,
     onBackToShelf: () -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(visible = open, enter = fadeIn(), exit = fadeOut()) {
@@ -88,9 +114,10 @@ fun SettingsDrawer(
         ) {
             DrawerPanel(
                 uiState = uiState,
+                theme = theme,
+                actions = actions,
                 onClose = onClose,
                 onBackToShelf = onBackToShelf,
-                content = content,
             )
         }
     }
@@ -99,9 +126,10 @@ fun SettingsDrawer(
 @Composable
 private fun DrawerPanel(
     uiState: ReaderUiState,
+    theme: ReaderTheme,
+    actions: SettingsActions,
     onClose: () -> Unit,
     onBackToShelf: () -> Unit,
-    content: @Composable () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -117,11 +145,159 @@ private fun DrawerPanel(
     ) {
         DrawerHeader(onClose = onClose)
         BookCard(uiState = uiState)
-        content()
+        TextSizeSection(fontSize = uiState.settings.fontSize, actions = actions)
+        LineSpacingSection(selected = uiState.settings.lineSpacing, onPick = actions.onLineSpacing)
+        FontSection(selected = uiState.settings.font, onPick = actions.onFont)
+        ThemeSection(selected = theme, onPick = actions.onTheme)
         Spacer(modifier = Modifier.weight(1f))
         BackToShelfButton(onClick = onBackToShelf)
     }
 }
+
+@Composable
+private fun TextSizeSection(fontSize: Int, actions: SettingsActions) {
+    DrawerSection(label = stringResource(R.string.reader_text_size)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StepButton(
+                label = "A−",
+                description = stringResource(R.string.reader_smaller_text),
+                fontSize = 14.sp,
+                onClick = actions.onSmallerText,
+            )
+            Text(
+                text = fontSize.toString(),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            StepButton(
+                label = "A+",
+                description = stringResource(R.string.reader_larger_text),
+                fontSize = 19.sp,
+                onClick = actions.onLargerText,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepButton(
+    label: String,
+    description: String,
+    fontSize: TextUnit,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(width = 56.dp, height = 44.dp)
+            .clip(CONTROL_SHAPE)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.5.dp, MaterialTheme.colorScheme.outline, CONTROL_SHAPE)
+            .clickable(onClickLabel = description, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            fontSize = fontSize,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun LineSpacingSection(selected: LineSpacing, onPick: (LineSpacing) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_line_spacing)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LineSpacing.entries.forEach { spacing ->
+                SegmentButton(
+                    label = stringResource(spacing.labelRes),
+                    selected = spacing == selected,
+                    onClick = { onPick(spacing) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FontSection(selected: ReaderFont, onPick: (ReaderFont) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_font)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ReaderFont.entries.forEach { font ->
+                SegmentButton(
+                    label = stringResource(font.labelRes),
+                    selected = font == selected,
+                    onClick = { onPick(font) },
+                    modifier = Modifier.weight(1f),
+                    style = TextStyle(
+                        fontFamily = if (font == ReaderFont.SERIF) LITERATA else FIGTREE,
+                        fontSize = 15.sp,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The three reading themes as swatches in their own colors, the chosen one with an accent border.
+ */
+@Composable
+private fun ThemeSection(selected: ReaderTheme, onPick: (ReaderTheme) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_theme)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ReaderTheme.entries.forEach { theme ->
+                val on = theme == selected
+                val border = if (on) AppTheme.colors.accentText else MaterialTheme.colorScheme.outline
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .clip(SWATCH_SHAPE)
+                        .background(theme.background)
+                        .border(2.dp, border, SWATCH_SHAPE)
+                        .clickable(onClick = { onPick(theme) }),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(theme.labelRes),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = theme.ink,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val LineSpacing.labelRes: Int
+    get() = when (this) {
+        LineSpacing.COMPACT -> R.string.reader_spacing_compact
+        LineSpacing.NORMAL -> R.string.reader_spacing_normal
+        LineSpacing.LOOSE -> R.string.reader_spacing_loose
+    }
+
+private val ReaderFont.labelRes: Int
+    get() = when (this) {
+        ReaderFont.SERIF -> R.string.reader_font_serif
+        ReaderFont.SANS -> R.string.reader_font_sans
+    }
+
+private val ReaderTheme.labelRes: Int
+    get() = when (this) {
+        ReaderTheme.LIGHT -> R.string.reader_theme_light
+        ReaderTheme.PAPER -> R.string.reader_theme_paper
+        ReaderTheme.DARK -> R.string.reader_theme_dark
+    }
 
 @Composable
 private fun DrawerHeader(onClose: () -> Unit) {

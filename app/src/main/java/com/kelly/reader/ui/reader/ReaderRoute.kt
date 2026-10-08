@@ -47,6 +47,13 @@ fun ReaderRoute(
         uiState = uiState,
         theme = theme,
         drawerOpen = drawerOpen,
+        settingsActions = SettingsActions(
+            onSmallerText = viewModel::decreaseFontSize,
+            onLargerText = viewModel::increaseFontSize,
+            onLineSpacing = viewModel::setLineSpacing,
+            onFont = viewModel::setFont,
+            onTheme = { viewModel.setThemeKey(it.key) },
+        ),
         onSettingsClick = { drawerOpen = true },
         onCloseSettings = { drawerOpen = false },
         onBackToShelf = onBackToShelf,

@@ -89,6 +89,7 @@ fun ReaderScreen(
     uiState: ReaderUiState,
     theme: ReaderTheme,
     drawerOpen: Boolean,
+    settingsActions: SettingsActions,
     onSettingsClick: () -> Unit,
     onCloseSettings: () -> Unit,
     onBackToShelf: () -> Unit,
@@ -109,10 +110,11 @@ fun ReaderScreen(
         SettingsDrawer(
             open = drawerOpen,
             uiState = uiState,
+            theme = theme,
+            actions = settingsActions,
             onClose = onCloseSettings,
             onBackToShelf = onBackToShelf,
-        ) {
-        }
+        )
     }
 }
 
@@ -271,7 +273,7 @@ private val PREVIEW_STATE = ReaderUiState(
 @Composable
 private fun ReaderScreenPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, false, {}, {}, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, false, SettingsActions.NONE, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -279,7 +281,7 @@ private fun ReaderScreenPreview() {
 @Composable
 private fun ReaderScreenDarkPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, false, {}, {}, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, false, SettingsActions.NONE, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -287,6 +289,6 @@ private fun ReaderScreenDarkPreview() {
 @Composable
 private fun ReaderScreenPaperPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, true, {}, {}, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, true, SettingsActions.NONE, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }
