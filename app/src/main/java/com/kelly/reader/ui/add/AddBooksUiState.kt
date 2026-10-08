@@ -5,16 +5,16 @@ import com.kelly.reader.domain.TransferStatus
 
 /**
  * What the Add books screen shows. [address] is the full URL to open on another device, or
- * null when the phone is not on Wi-Fi.
+ * null when the phone is not on Wi-Fi or the server is not running. [serverFailed] is true
+ * when no port was free.
  */
 data class AddBooksUiState(
     val address: String? = null,
+    val onWifi: Boolean = false,
+    val serverFailed: Boolean = false,
     val transfers: List<Transfer> = emptyList(),
     val copied: Boolean = false,
 ) {
-
-    val onWifi: Boolean
-        get() = address != null
 
     val doneCount: Int
         get() = transfers.count { it.isDone }

@@ -121,7 +121,7 @@ private fun WifiCard(uiState: AddBooksUiState, onCopy: (String) -> Unit) {
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            WifiStatusRow(onWifi = uiState.onWifi)
+            WifiStatusRow(onWifi = uiState.onWifi, failed = uiState.serverFailed)
             Text(
                 text = stringResource(R.string.add_help),
                 fontSize = 14.sp,
@@ -141,7 +141,17 @@ private fun WifiCard(uiState: AddBooksUiState, onCopy: (String) -> Unit) {
 }
 
 @Composable
-private fun WifiStatusRow(onWifi: Boolean) {
+private fun WifiStatusRow(onWifi: Boolean, failed: Boolean) {
+    val title = when {
+        failed -> R.string.add_server_failed
+        onWifi -> R.string.add_wifi_on
+        else -> R.string.add_wifi_off
+    }
+    val detail = when {
+        failed -> R.string.add_server_failed_help
+        onWifi -> R.string.add_wifi_connected
+        else -> R.string.add_wifi_join
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -162,21 +172,19 @@ private fun WifiStatusRow(onWifi: Boolean) {
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(if (onWifi) R.string.add_wifi_on else R.string.add_wifi_off),
+                text = stringResource(title),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = stringResource(
-                    if (onWifi) R.string.add_wifi_connected else R.string.add_wifi_join,
-                ),
+                text = stringResource(detail),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
             )
         }
-        if (onWifi) LiveTag()
+        if (onWifi && !failed) LiveTag()
     }
 }
 
@@ -532,7 +540,7 @@ private val PREVIEW_MANY = PREVIEW_FEW + listOf(
 private fun AddBooksScreenPreview() {
     KellyReaderTheme {
         AddBooksScreen(
-            AddBooksUiState(address = "http://192.168.1.24:12121", transfers = PREVIEW_FEW),
+            AddBooksUiState(address = "http://192.168.1.24:12121", onWifi = true, transfers = PREVIEW_FEW),
             {}, {},
         )
     }
@@ -543,7 +551,7 @@ private fun AddBooksScreenPreview() {
 private fun AddBooksScreenManyPreview() {
     KellyReaderTheme {
         AddBooksScreen(
-            AddBooksUiState(address = "http://192.168.1.24:12121", transfers = PREVIEW_MANY),
+            AddBooksUiState(address = "http://192.168.1.24:12121", onWifi = true, transfers = PREVIEW_MANY),
             {}, {},
         )
     }
@@ -554,9 +562,17 @@ private fun AddBooksScreenManyPreview() {
 private fun AddBooksScreenDarkPreview() {
     KellyReaderTheme {
         AddBooksScreen(
-            AddBooksUiState(address = "http://192.168.1.24:12121", copied = true, transfers = PREVIEW_MANY),
+            AddBooksUiState(address = "http://192.168.1.24:12121", onWifi = true, copied = true, transfers = PREVIEW_MANY),
             {}, {},
         )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun AddBooksScreenServerFailedPreview() {
+    KellyReaderTheme {
+        AddBooksScreen(AddBooksUiState(onWifi = true, serverFailed = true), {}, {})
     }
 }
 

@@ -13,7 +13,8 @@ import com.kelly.reader.data.upload.UploadServer
 
 /**
  * Owns the upload server for as long as the Add books screen is on the back stack: starts it
- * when created, stops it in [onCleared], and mirrors its transfers into the state.
+ * when created, stops it in [onCleared], and mirrors its transfers into the state. When no
+ * port is free the state says so instead of crashing.
  */
 class AddBooksViewModel(
     private val server: UploadServer,
@@ -25,11 +26,13 @@ class AddBooksViewModel(
     val uiState: StateFlow<AddBooksUiState> = _uiState.asStateFlow()
 
     init {
-        val port = server.start(preferredPort)
+        val port = runCatching { server.start(preferredPort) }.getOrNull()
+        if (port == null) _uiState.update { it.copy(serverFailed = true) }
         viewModelScope.launch {
             wifiAddress.collect { ip ->
                 _uiState.update { state ->
-                    state.copy(address = ip?.let { "http://$it:$port" }, copied = false)
+                    val address = if (port != null && ip != null) "http://$ip:$port" else null
+                    state.copy(address = address, onWifi = ip != null, copied = false)
                 }
             }
         }

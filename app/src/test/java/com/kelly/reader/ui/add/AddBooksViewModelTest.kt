@@ -14,6 +14,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.net.ServerSocket
 
 import com.kelly.reader.data.FakeBookRepository
 import com.kelly.reader.data.upload.UploadServer
@@ -59,6 +60,27 @@ class AddBooksViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertNull(viewModel.uiState.value.address)
         assertFalse(viewModel.uiState.value.copied)
+    }
+
+    @Test
+    fun serverFailed_whenNoPortIsFree_statesItInsteadOfCrashing() = runTest(dispatcher) {
+        // take the preferred port and the ten after it, which is the whole range tried
+        val base = 24121
+        val taken = (base..base + 10).map { ServerSocket(it) }
+        try {
+            val failing = AddBooksViewModel(
+                UploadServer(FakeBookRepository(), page = ""),
+                wifi,
+                preferredPort = base,
+            )
+            dispatcher.scheduler.advanceUntilIdle()
+            val state = failing.uiState.value
+            assertTrue(state.serverFailed)
+            assertNull(state.address)
+            assertTrue(state.onWifi)
+        } finally {
+            taken.forEach { it.close() }
+        }
     }
 
     @Test
