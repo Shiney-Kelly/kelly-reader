@@ -1,4 +1,3 @@
 <resources>
     <string name="app_name">Kelly Reader</string>
-    <string name="greeting">Hello %1$s!</string>
 </resources>
