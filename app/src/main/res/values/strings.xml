@@ -12,4 +12,7 @@
     <string name="shelf_cover_meta">TXT · %1$s</string>
     <string name="shelf_open_book">Open %1$s</string>
     <string name="shelf_select_book">Select %1$s</string>
+    <string name="shelf_empty_title">Your shelf is empty</string>
+    <string name="shelf_empty_help">Send .txt files from a computer or phone over Wi-Fi. They show up here.</string>
+    <string name="shelf_empty_add">Add books</string>
 </resources>

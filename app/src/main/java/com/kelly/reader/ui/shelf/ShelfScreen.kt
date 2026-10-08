@@ -1,6 +1,7 @@
 package com.kelly.reader.ui.shelf
 
 import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,21 +15,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,12 +72,66 @@ fun ShelfScreen(
             onAddClick = onAddClick,
         )
         val books = uiState.books ?: return
-        BookGrid(
-            books = books,
-            editing = uiState.editing,
-            selected = uiState.selected,
-            onBookClick = onBookClick,
-            modifier = Modifier.weight(1f),
+        if (books.isEmpty()) {
+            EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
+        } else {
+            BookGrid(
+                books = books,
+                editing = uiState.editing,
+                selected = uiState.selected,
+                onBookClick = onBookClick,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * What the shelf shows with no books: an icon, a title, a help line and an Add books button.
+ */
+@Composable
+private fun EmptyShelf(onAddClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 40.dp, end = 40.dp, bottom = 80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .background(AppTheme.colors.tint),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = AppIcons.BOOK,
+                contentDescription = null,
+                tint = AppTheme.colors.accentText,
+                modifier = Modifier.size(40.dp),
+            )
+        }
+        Text(
+            text = stringResource(R.string.shelf_empty_title),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            text = stringResource(R.string.shelf_empty_help),
+            fontSize = 15.sp,
+            lineHeight = 22.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        PillButton(
+            label = stringResource(R.string.shelf_empty_add),
+            onClick = onAddClick,
+            icon = AppIcons.PLUS,
+            height = 48.dp,
+            modifier = Modifier.padding(top = 12.dp),
         )
     }
 }
@@ -238,6 +298,14 @@ private fun ShelfScreenPreview() {
 private fun ShelfScreenDarkPreview() {
     KellyReaderTheme {
         ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun ShelfScreenEmptyPreview() {
+    KellyReaderTheme {
+        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {})
     }
 }
 
