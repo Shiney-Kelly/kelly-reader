@@ -162,7 +162,7 @@ class UploadServer(
     }
 
     companion object {
-        const val DEFAULT_PORT = 8080
+        const val DEFAULT_PORT = 12121
         private const val PORT_TRIES = 10
     }
 }
