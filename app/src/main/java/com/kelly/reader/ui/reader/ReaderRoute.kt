@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
 import com.kelly.reader.di.appContainer
+import com.kelly.reader.ui.SystemBarIcons
 import com.kelly.reader.ui.theme.ReaderTheme
 
 /**
@@ -43,6 +44,8 @@ fun ReaderRoute(
 
     // back closes the drawer first, then leaves for the shelf
     BackHandler { if (drawerOpen) drawerOpen = false else onBackToShelf() }
+    // the page sets the bar icons, not the system theme: light page, dark icons
+    SystemBarIcons(darkIcons = theme != ReaderTheme.DARK)
     ReaderScreen(
         uiState = uiState,
         theme = theme,
