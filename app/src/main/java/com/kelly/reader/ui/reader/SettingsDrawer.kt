@@ -331,9 +331,7 @@ private fun DrawerHeader(onClose: () -> Unit) {
  */
 @Composable
 private fun BookCard(uiState: ReaderUiState) {
-    val page = uiState.pageIndex + 1
-    val pageLabel = uiState.pageCount?.let { stringResource(R.string.reader_page_of, page, it) }
-        ?: stringResource(R.string.reader_page_of_unknown, page)
+    val pageLabel = pageLabel(uiState)
     Column(
         modifier = Modifier
             .fillMaxWidth()

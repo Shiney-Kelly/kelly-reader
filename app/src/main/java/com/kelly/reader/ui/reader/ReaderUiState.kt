@@ -29,6 +29,13 @@ data class ReaderUiState(
         get() = if (paginationDone) pageStarts?.size else null
 
     /**
+     * False while pagination ran from the resume point first and the pages before it are not
+     * in yet; the page number means nothing then.
+     */
+    val pageNumberKnown: Boolean
+        get() = pageStarts?.let { it.isNotEmpty() && it[0] == 0 } ?: false
+
+    /**
      * True once the page holding [offset] has both ends known: a later page start exists, or
      * every page is known. Before that the page would run to the end of the book.
      */

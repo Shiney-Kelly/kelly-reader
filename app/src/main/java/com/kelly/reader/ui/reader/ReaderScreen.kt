@@ -239,11 +239,24 @@ private fun PageArea(
     }
 }
 
+/**
+ * "Page x of y" once everything is known, "Page x of …" while the count is still coming, and
+ * "Page … of …" while the pages before the resume point are still coming.
+ */
+@Composable
+fun pageLabel(uiState: ReaderUiState): String {
+    val page = uiState.pageIndex + 1
+    val count = uiState.pageCount
+    return when {
+        count != null -> stringResource(R.string.reader_page_of, page, count)
+        uiState.pageNumberKnown -> stringResource(R.string.reader_page_of_unknown, page)
+        else -> stringResource(R.string.reader_page_unknown)
+    }
+}
+
 @Composable
 private fun ReaderFooter(uiState: ReaderUiState, muted: Color) {
-    val page = uiState.pageIndex + 1
-    val pageLabel = uiState.pageCount?.let { stringResource(R.string.reader_page_of, page, it) }
-        ?: stringResource(R.string.reader_page_of_unknown, page)
+    val pageLabel = pageLabel(uiState)
     Row(
         modifier = Modifier
             .fillMaxWidth()

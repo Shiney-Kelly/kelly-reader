@@ -24,23 +24,36 @@ fun interface PageMeasurer {
 object Paginator {
 
     /**
-     * Finds the pages of [text] one after another on [dispatcher], emitting the start offsets
-     * found so far after every page. The last emission holds every page. Empty text is one
-     * empty page.
+     * Finds the pages of [text] on [dispatcher], emitting the start offsets found so far after
+     * every page. The last emission holds every page. Empty text is one empty page.
+     *
+     * With an [anchor] inside the text, the pages from the anchor onward come first, so the
+     * page the reader is on shows at once; then the pages before it are filled in from the
+     * start and emitted once, with the page that would cross the anchor cut at the anchor.
      */
     fun paginate(
         text: String,
         measurer: PageMeasurer,
         dispatcher: CoroutineDispatcher = Dispatchers.Default,
+        anchor: Int = 0,
     ): Flow<IntArray> = flow {
-        val starts = ArrayList<Int>()
-        var start = 0
+        val from = if (anchor in 1 until text.length) anchor else 0
+        val after = ArrayList<Int>()
+        var start = from
         do {
-            starts += start
-            emit(starts.toIntArray())
-            val fit = measurer.charsThatFit(text, start).coerceAtLeast(1)
-            start += fit
+            after += start
+            emit(after.toIntArray())
+            start += measurer.charsThatFit(text, start).coerceAtLeast(1)
         } while (start < text.length)
+
+        if (from == 0) return@flow
+        val before = ArrayList<Int>()
+        start = 0
+        while (start < from) {
+            before += start
+            start += measurer.charsThatFit(text, start).coerceAtLeast(1)
+        }
+        emit((before + after).toIntArray())
     }.flowOn(dispatcher)
 
     /**

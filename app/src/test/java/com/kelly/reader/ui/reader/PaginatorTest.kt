@@ -53,6 +53,30 @@ class PaginatorTest {
     }
 
     @Test
+    fun paginate_withAnchor_emitsPagesFromAnchorFirstThenAll() = runTest {
+        val emissions = Paginator.paginate("abcdefghij", fixed(4), dispatcher, anchor = 5).toList()
+        assertArrayEquals(intArrayOf(5), emissions[0])
+        assertArrayEquals(intArrayOf(5, 9), emissions[1])
+        // the page from 4 would run to 8 and cross the anchor, so it is cut at 5
+        assertArrayEquals(intArrayOf(0, 4, 5, 9), emissions.last())
+    }
+
+    @Test
+    fun paginate_anchorOnNaturalBoundary_matchesPlainPaging() = runTest {
+        val starts = Paginator.paginate("abcdefghij", fixed(4), dispatcher, anchor = 4).last()
+        assertArrayEquals(intArrayOf(0, 4, 8), starts)
+    }
+
+    @Test
+    fun paginate_anchorOutsideText_startsFromZero() = runTest {
+        assertArrayEquals(
+            intArrayOf(0, 4, 8),
+            Paginator.paginate("abcdefghij", fixed(4), dispatcher, anchor = 10).last(),
+        )
+        assertArrayEquals(intArrayOf(0), Paginator.paginate("", fixed(4), dispatcher, anchor = 3).last())
+    }
+
+    @Test
     fun pageIndexFor_findsPageHoldingOffset() {
         val starts = intArrayOf(0, 4, 8)
         assertEquals(0, Paginator.pageIndexFor(starts, 0))

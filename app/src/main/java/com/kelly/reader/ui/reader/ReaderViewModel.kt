@@ -84,7 +84,8 @@ class ReaderViewModel(
         _uiState.update { it.copy(paginationDone = false) }
         paginationJob = viewModelScope.launch {
             var last: IntArray? = null
-            Paginator.paginate(text, measurer, paginationDispatcher).conflate().collect { starts ->
+            val anchor = _uiState.value.offset
+            Paginator.paginate(text, measurer, paginationDispatcher, anchor).conflate().collect { starts ->
                 last = starts
                 _uiState.update { it.copy(pageStarts = starts) }
             }

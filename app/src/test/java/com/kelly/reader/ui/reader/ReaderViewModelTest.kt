@@ -97,12 +97,26 @@ class ReaderViewModelTest {
 
     @Test
     fun init_resumesAtSavedOffset() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 8))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertArrayEquals(intArrayOf(0, 4, 8), viewModel.uiState.value.pageStarts)
+        assertEquals(2, viewModel.uiState.value.pageIndex)
+        assertEquals("ij", viewModel.uiState.value.pageText)
+    }
+
+    @Test
+    fun init_resumeOffScreenBoundary_keepsPositionWithShortPageBefore() = runTest(dispatcher) {
         repository.books.value = listOf(book.copy(lastOffset = 9))
         val viewModel = viewModel()
         viewModel.setPageMeasurer("k", fixed(4))
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(2, viewModel.uiState.value.pageIndex)
-        assertEquals("ij", viewModel.uiState.value.pageText)
+        val state = viewModel.uiState.value
+        assertArrayEquals(intArrayOf(0, 4, 8, 9), state.pageStarts)
+        assertEquals(9, state.offset)
+        assertEquals("j", state.pageText)
+        assertTrue(state.pageNumberKnown)
     }
 
     @Test
@@ -114,12 +128,14 @@ class ReaderViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(4, viewModel.uiState.value.offset)
 
+        // the new pages are anchored at the current offset, so the page on screen stays put
         viewModel.setPageMeasurer("three", fixed(3))
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value
-        assertArrayEquals(intArrayOf(0, 3, 6, 9), state.pageStarts)
+        assertArrayEquals(intArrayOf(0, 3, 4, 7), state.pageStarts)
         assertEquals(4, state.offset)
-        assertEquals(1, state.pageIndex)
+        assertEquals(2, state.pageIndex)
+        assertEquals("efg", state.pageText)
     }
 
     @Test

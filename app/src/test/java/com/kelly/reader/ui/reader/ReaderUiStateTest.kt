@@ -42,6 +42,19 @@ class ReaderUiStateTest {
     }
 
     @Test
+    fun pageText_anchoredStarts_showsCurrentPageWithoutPageNumber() {
+        val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(5, 9))
+        assertTrue(state.pageKnown)
+        assertEquals("fghi", state.pageText)
+        assertFalse(state.pageNumberKnown)
+        assertFalse(state.hasPreviousPage)
+        val filled = state.copy(pageStarts = intArrayOf(0, 4, 5, 9), paginationDone = true)
+        assertTrue(filled.pageNumberKnown)
+        assertEquals(2, filled.pageIndex)
+        assertTrue(filled.hasPreviousPage)
+    }
+
+    @Test
     fun percent_beforeDone_usesChars() {
         val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(0, 4, 8))
         assertEquals(50, state.percent)
