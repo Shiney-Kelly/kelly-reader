@@ -148,7 +148,10 @@ class ReaderViewModel(
         viewModelScope.launch { settingsRepository.setFont(font) }
     }
 
-    fun setThemeKey(key: String) {
+    /**
+     * Picks a reader theme by key, or null to follow the system again.
+     */
+    fun setThemeKey(key: String?) {
         viewModelScope.launch { settingsRepository.setThemeKey(key) }
     }
 }

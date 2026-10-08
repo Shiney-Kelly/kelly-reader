@@ -76,5 +76,6 @@
     <string name="reader_theme_light">Light</string>
     <string name="reader_theme_paper">Paper</string>
     <string name="reader_theme_dark">Dark</string>
+    <string name="reader_theme_auto">Auto</string>
     <string name="reader_back_to_shelf">Back to bookshelf</string>
 </resources>

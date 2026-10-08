@@ -55,7 +55,7 @@ fun ReaderRoute(
             onLargerText = viewModel::increaseFontSize,
             onLineSpacing = viewModel::setLineSpacing,
             onFont = viewModel::setFont,
-            onTheme = { viewModel.setThemeKey(it.key) },
+            onTheme = { viewModel.setThemeKey(it?.key) },
         ),
         onSettingsClick = { drawerOpen = true },
         onCloseSettings = { drawerOpen = false },

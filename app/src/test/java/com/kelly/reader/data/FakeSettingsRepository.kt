@@ -40,7 +40,7 @@ class FakeSettingsRepository(
         settings.update { it.copy(font = font) }
     }
 
-    override suspend fun setThemeKey(key: String) {
+    override suspend fun setThemeKey(key: String?) {
         settings.update { it.copy(themeKey = key) }
     }
 }

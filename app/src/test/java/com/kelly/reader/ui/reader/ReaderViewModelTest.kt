@@ -160,6 +160,10 @@ class ReaderViewModelTest {
         assertEquals(20, state.fontSize)
         assertEquals(LineSpacing.LOOSE, state.lineSpacing)
         assertEquals("paper", state.themeKey)
+
+        viewModel.setThemeKey(null)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.settings.themeKey)
     }
 
     @Test

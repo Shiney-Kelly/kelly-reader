@@ -112,7 +112,6 @@ fun ReaderScreen(
         SettingsDrawer(
             open = drawerOpen,
             uiState = uiState,
-            theme = theme,
             actions = settingsActions,
             onClose = onCloseSettings,
             onBackToShelf = onBackToShelf,

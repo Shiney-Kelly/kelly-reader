@@ -42,9 +42,9 @@ interface SettingsRepository {
     suspend fun setFont(font: ReaderFont)
 
     /**
-     * Stores the reader theme by its key. The user cannot unset it once picked.
+     * Stores the reader theme by its key, or goes back to following the system when null.
      */
-    suspend fun setThemeKey(key: String)
+    suspend fun setThemeKey(key: String?)
 }
 
 /**
@@ -84,8 +84,8 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[FONT] = font.key }
     }
 
-    override suspend fun setThemeKey(key: String) {
-        dataStore.edit { prefs -> prefs[THEME] = key }
+    override suspend fun setThemeKey(key: String?) {
+        dataStore.edit { prefs -> if (key == null) prefs.remove(THEME) else prefs[THEME] = key }
     }
 
     private companion object {

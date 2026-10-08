@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +71,7 @@ data class SettingsActions(
     val onLargerText: () -> Unit,
     val onLineSpacing: (LineSpacing) -> Unit,
     val onFont: (ReaderFont) -> Unit,
-    val onTheme: (ReaderTheme) -> Unit,
+    val onTheme: (ReaderTheme?) -> Unit,
 ) {
 
     companion object {
@@ -86,7 +87,6 @@ data class SettingsActions(
 fun SettingsDrawer(
     open: Boolean,
     uiState: ReaderUiState,
-    theme: ReaderTheme,
     actions: SettingsActions,
     onClose: () -> Unit,
     onBackToShelf: () -> Unit,
@@ -114,7 +114,6 @@ fun SettingsDrawer(
         ) {
             DrawerPanel(
                 uiState = uiState,
-                theme = theme,
                 actions = actions,
                 onClose = onClose,
                 onBackToShelf = onBackToShelf,
@@ -126,7 +125,6 @@ fun SettingsDrawer(
 @Composable
 private fun DrawerPanel(
     uiState: ReaderUiState,
-    theme: ReaderTheme,
     actions: SettingsActions,
     onClose: () -> Unit,
     onBackToShelf: () -> Unit,
@@ -148,7 +146,7 @@ private fun DrawerPanel(
         TextSizeSection(fontSize = uiState.settings.fontSize, actions = actions)
         LineSpacingSection(selected = uiState.settings.lineSpacing, onPick = actions.onLineSpacing)
         FontSection(selected = uiState.settings.font, onPick = actions.onFont)
-        ThemeSection(selected = theme, onPick = actions.onTheme)
+        ThemeSection(selectedKey = uiState.settings.themeKey, onPick = actions.onTheme)
         Spacer(modifier = Modifier.weight(1f))
         BackToShelfButton(onClick = onBackToShelf)
     }
@@ -248,34 +246,60 @@ private fun FontSection(selected: ReaderFont, onPick: (ReaderFont) -> Unit) {
 }
 
 /**
- * The three reading themes as swatches in their own colors, the chosen one with an accent border.
+ * The three reading themes as swatches in their own colors plus Auto, which follows the
+ * system. The chosen one has an accent border; [selectedKey] null means Auto.
  */
 @Composable
-private fun ThemeSection(selected: ReaderTheme, onPick: (ReaderTheme) -> Unit) {
+private fun ThemeSection(selectedKey: String?, onPick: (ReaderTheme?) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_theme)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ReaderTheme.entries.forEach { theme ->
-                val on = theme == selected
-                val border = if (on) AppTheme.colors.accentText else MaterialTheme.colorScheme.outline
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                        .clip(SWATCH_SHAPE)
-                        .background(theme.background)
-                        .border(2.dp, border, SWATCH_SHAPE)
-                        .clickable(onClick = { onPick(theme) }),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(theme.labelRes),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = theme.ink,
-                    )
-                }
+                ThemeSwatch(
+                    label = stringResource(theme.labelRes),
+                    background = theme.background,
+                    ink = theme.ink,
+                    selected = theme.key == selectedKey,
+                    onClick = { onPick(theme) },
+                    modifier = Modifier.weight(1f),
+                )
             }
+            ThemeSwatch(
+                label = stringResource(R.string.reader_theme_auto),
+                background = MaterialTheme.colorScheme.surface,
+                ink = MaterialTheme.colorScheme.onSurface,
+                selected = selectedKey == null,
+                onClick = { onPick(null) },
+                modifier = Modifier.weight(1f),
+            )
         }
+    }
+}
+
+@Composable
+private fun ThemeSwatch(
+    label: String,
+    background: Color,
+    ink: Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val border = if (selected) AppTheme.colors.accentText else MaterialTheme.colorScheme.outline
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .clip(SWATCH_SHAPE)
+            .background(background)
+            .border(2.dp, border, SWATCH_SHAPE)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = ink,
+        )
     }
 }
 
