@@ -12,28 +12,28 @@ import kotlinx.coroutines.launch
 import com.kelly.reader.data.upload.UploadServer
 
 /**
- * Owns the upload server for as long as the Add books screen is on the back stack: starts it
- * when created, stops it in [onCleared], and mirrors its transfers into the state. When no
- * port is free the state says so instead of crashing.
+ * Owns the upload server for the Add books screen. The screen calls [startServer] when it
+ * comes to the front and [stopServer] when it goes behind another app or screen, so transfer
+ * only runs while the screen is visible, as its footer says. The received list survives a
+ * stop. When no port is free the state says so instead of crashing.
  */
 class AddBooksViewModel(
     private val server: UploadServer,
     wifiAddress: Flow<String?>,
-    preferredPort: Int = UploadServer.DEFAULT_PORT,
+    private val preferredPort: Int = UploadServer.DEFAULT_PORT,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddBooksUiState())
     val uiState: StateFlow<AddBooksUiState> = _uiState.asStateFlow()
 
+    private var ip: String? = null
+    private var port: Int? = null
+
     init {
-        val port = runCatching { server.start(preferredPort) }.getOrNull()
-        if (port == null) _uiState.update { it.copy(serverFailed = true) }
         viewModelScope.launch {
-            wifiAddress.collect { ip ->
-                _uiState.update { state ->
-                    val address = if (port != null && ip != null) "http://$ip:$port" else null
-                    state.copy(address = address, onWifi = ip != null, copied = false)
-                }
+            wifiAddress.collect { address ->
+                ip = address
+                refreshAddress()
             }
         }
         viewModelScope.launch {
@@ -44,13 +44,41 @@ class AddBooksViewModel(
     }
 
     /**
+     * Starts listening, unless already running or no port could be found before.
+     */
+    fun startServer() {
+        if (port != null || _uiState.value.serverFailed) return
+        port = runCatching { server.start(preferredPort) }.getOrNull()
+        if (port == null) _uiState.update { it.copy(serverFailed = true) }
+        refreshAddress()
+    }
+
+    fun stopServer() {
+        if (port == null) return
+        server.stop()
+        port = null
+        refreshAddress()
+    }
+
+    /**
      * Marks the address as copied; the screen does the clipboard write itself.
      */
     fun onAddressCopied() {
         _uiState.update { it.copy(copied = true) }
     }
 
+    private fun refreshAddress() {
+        val address = port?.let { p -> ip?.let { "http://$it:$p" } }
+        _uiState.update { state ->
+            state.copy(
+                address = address,
+                onWifi = ip != null,
+                copied = state.copied && address == state.address,
+            )
+        }
+    }
+
     override fun onCleared() {
-        server.stop()
+        stopServer()
     }
 }

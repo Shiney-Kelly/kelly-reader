@@ -37,6 +37,7 @@ class AddBooksViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         viewModel = AddBooksViewModel(server, wifi, preferredPort = 0)
+        viewModel.startServer()
         dispatcher.scheduler.advanceUntilIdle()
     }
 
@@ -73,6 +74,7 @@ class AddBooksViewModelTest {
                 wifi,
                 preferredPort = base,
             )
+            failing.startServer()
             dispatcher.scheduler.advanceUntilIdle()
             val state = failing.uiState.value
             assertTrue(state.serverFailed)
@@ -81,6 +83,20 @@ class AddBooksViewModelTest {
         } finally {
             taken.forEach { it.close() }
         }
+    }
+
+    @Test
+    fun stopAndStart_dropAndRestoreTheAddress() = runTest(dispatcher) {
+        viewModel.onAddressCopied()
+        viewModel.stopServer()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertNull(server.port)
+        assertNull(viewModel.uiState.value.address)
+        assertFalse(viewModel.uiState.value.copied)
+
+        viewModel.startServer()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("http://192.168.1.24:${server.port}", viewModel.uiState.value.address)
     }
 
     @Test

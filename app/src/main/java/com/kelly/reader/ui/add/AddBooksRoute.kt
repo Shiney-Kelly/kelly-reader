@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.toClipEntry
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -30,6 +31,13 @@ fun AddBooksRoute(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+
+    // the server runs only while this screen is in front: it stops on Home and comes back
+    // when the app does
+    LifecycleResumeEffect(Unit) {
+        viewModel.startServer()
+        onPauseOrDispose { viewModel.stopServer() }
+    }
 
     AddBooksScreen(
         uiState = uiState,
