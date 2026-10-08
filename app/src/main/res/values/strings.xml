@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">Kelly Reader</string>
+
+    <string name="shelf_title">Bookshelf</string>
+    <string name="shelf_select_books">Select books</string>
+    <string name="shelf_selected_count">%1$d selected</string>
+    <string name="shelf_edit">Edit</string>
+    <string name="shelf_done">Done</string>
+    <string name="shelf_add">Add</string>
+    <string name="shelf_new">New</string>
+    <string name="shelf_percent">%1$d%%</string>
+    <string name="shelf_cover_meta">TXT · %1$s</string>
+    <string name="shelf_open_book">Open %1$s</string>
+    <string name="shelf_select_book">Select %1$s</string>
 </resources>

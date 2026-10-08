@@ -1,16 +1,18 @@
 package com.kelly.reader.ui.shelf
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+
+import com.kelly.reader.di.appContainer
 
 /**
- * The bookshelf screen entry. A placeholder until the shelf screen lands.
+ * The bookshelf screen entry: builds the ViewModel and wires its state to [ShelfScreen].
+ * A tap on a book opens it, or toggles its selection while editing.
  */
 @Composable
 fun ShelfRoute(
@@ -18,9 +20,18 @@ fun ShelfRoute(
     onAddBooks: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text(text = "Bookshelf")
-        Button(onClick = onAddBooks) { Text(text = "Add") }
-        Button(onClick = { onOpenBook("placeholder") }) { Text(text = "Open a book") }
-    }
+    val container = appContainer()
+    val viewModel: ShelfViewModel = viewModel(
+        factory = viewModelFactory { initializer { ShelfViewModel(container.bookRepository) } },
+    )
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    ShelfScreen(
+        uiState = uiState,
+        onBookClick = { id -> if (uiState.editing) viewModel.toggleSelected(id) else onOpenBook(id) },
+        onEditClick = viewModel::startEditing,
+        onDoneClick = viewModel::stopEditing,
+        onAddClick = onAddBooks,
+        modifier = modifier,
+    )
 }
