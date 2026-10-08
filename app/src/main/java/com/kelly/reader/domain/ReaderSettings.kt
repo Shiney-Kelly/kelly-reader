@@ -4,11 +4,11 @@
 package com.kelly.reader.domain
 
 /**
- * The font used for the reading text.
+ * The font used for the reading text. [key] is what the settings store.
  */
-enum class ReaderFont(val key: String, val label: String) {
-    SERIF("serif", "Serif"),
-    SANS("sans", "Sans");
+enum class ReaderFont(val key: String) {
+    SERIF("serif"),
+    SANS("sans");
 
     companion object {
 
@@ -20,12 +20,12 @@ enum class ReaderFont(val key: String, val label: String) {
 }
 
 /**
- * Line height as a multiple of the font size.
+ * Line height as a multiple of the font size. [key] is what the settings store.
  */
-enum class LineSpacing(val key: String, val label: String, val multiplier: Float) {
-    COMPACT("compact", "Compact", 1.45f),
-    NORMAL("normal", "Normal", 1.7f),
-    LOOSE("loose", "Loose", 2.0f);
+enum class LineSpacing(val key: String, val multiplier: Float) {
+    COMPACT("compact", 1.45f),
+    NORMAL("normal", 1.7f),
+    LOOSE("loose", 2.0f);
 
     companion object {
 

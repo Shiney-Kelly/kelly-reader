@@ -7,18 +7,17 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * A reading theme: page background, text color and the muted color for the title and footer.
- * [key] is what the settings store, [label] is what the drawer shows.
+ * [key] is what the settings store.
  */
 enum class ReaderTheme(
     val key: String,
-    val label: String,
     val background: Color,
     val ink: Color,
     val muted: Color,
 ) {
-    LIGHT("light", "Light", READER_LIGHT_BG, READER_LIGHT_INK, READER_LIGHT_MUTED),
-    PAPER("paper", "Paper", READER_PAPER_BG, READER_PAPER_INK, READER_PAPER_MUTED),
-    DARK("dark", "Dark", READER_DARK_BG, READER_DARK_INK, READER_DARK_MUTED);
+    LIGHT("light", READER_LIGHT_BG, READER_LIGHT_INK, READER_LIGHT_MUTED),
+    PAPER("paper", READER_PAPER_BG, READER_PAPER_INK, READER_PAPER_MUTED),
+    DARK("dark", READER_DARK_BG, READER_DARK_INK, READER_DARK_MUTED);
 
     companion object {
 
