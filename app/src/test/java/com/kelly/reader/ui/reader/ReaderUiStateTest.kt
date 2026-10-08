@@ -17,7 +17,7 @@ class ReaderUiStateTest {
         val state = ReaderUiState(text = text)
         assertFalse(state.pageKnown)
         assertEquals("", state.pageText)
-        assertEquals(0, state.percent)
+        assertEquals("0.00%", state.percentLabel)
     }
 
     @Test
@@ -38,7 +38,7 @@ class ReaderUiStateTest {
         assertEquals("", running.pageText)
         val done = running.copy(paginationDone = true)
         assertEquals("ij", done.pageText)
-        assertEquals(100, done.percent)
+        assertEquals("100.00%", done.percentLabel)
     }
 
     @Test
@@ -57,6 +57,6 @@ class ReaderUiStateTest {
     @Test
     fun percent_beforeDone_usesChars() {
         val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(0, 4, 8))
-        assertEquals(50, state.percent)
+        assertEquals("50.00%", state.percentLabel)
     }
 }

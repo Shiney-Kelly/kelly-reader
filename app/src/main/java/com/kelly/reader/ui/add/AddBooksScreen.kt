@@ -322,7 +322,7 @@ private fun SummaryCard(uiState: AddBooksUiState) {
                     )
                 }
                 Text(
-                    text = stringResource(R.string.shelf_percent, uiState.totalPercent),
+                    text = stringResource(R.string.add_percent, uiState.totalPercent),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = AppTheme.colors.accentText,

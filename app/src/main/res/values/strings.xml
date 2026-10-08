@@ -8,7 +8,6 @@
     <string name="shelf_done">Done</string>
     <string name="shelf_add">Add</string>
     <string name="shelf_new">New</string>
-    <string name="shelf_percent">%1$d%%</string>
     <string name="shelf_cover_meta">TXT · %1$s</string>
     <string name="shelf_open_book">Open %1$s</string>
     <string name="shelf_select_book">Select %1$s</string>
@@ -38,6 +37,7 @@
     <string name="add_received_files">%1$d files</string>
     <string name="add_waiting">Waiting for files…</string>
     <string name="add_summary_count">%1$d</string>
+    <string name="add_percent">%1$d%%</string>
     <string name="add_summary_of">of %1$d books added</string>
     <string name="add_tag_added">%1$d added</string>
     <string name="add_tag_uploading">%1$d uploading</string>
@@ -59,7 +59,7 @@
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_next_page">Next page</string>
     <string name="reader_close_settings">Close settings</string>
-    <string name="reader_page_read">%1$s · %2$d%% read</string>
+    <string name="reader_page_read">%1$s · %2$s read</string>
     <string name="reader_text_size">Text size</string>
     <string name="reader_smaller_text">Smaller text</string>
     <string name="reader_larger_text">Larger text</string>

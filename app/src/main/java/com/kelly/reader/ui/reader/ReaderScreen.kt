@@ -267,7 +267,7 @@ private fun ReaderFooter(uiState: ReaderUiState, muted: Color) {
     ) {
         Text(text = pageLabel, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = muted)
         Text(
-            text = stringResource(R.string.shelf_percent, uiState.percent),
+            text = uiState.percentLabel,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = muted,

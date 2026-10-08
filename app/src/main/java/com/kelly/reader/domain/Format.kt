@@ -9,6 +9,12 @@ private const val KB = 1024.0
 private const val MB = KB * 1024
 
 /**
+ * Formats reading [progress] (0..1) with two decimals, as the owner wants it: "98.88%".
+ */
+fun formatPercent(progress: Float): String =
+    String.format(Locale.US, "%.2f%%", progress.coerceIn(0f, 1f) * 100)
+
+/**
  * Formats [bytes] the way the design shows sizes: "386 KB" below a megabyte, "1.2 MB" above.
  */
 fun formatSize(bytes: Long): String = if (bytes < MB) {

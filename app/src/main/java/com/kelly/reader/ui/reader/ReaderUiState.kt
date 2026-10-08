@@ -2,6 +2,7 @@ package com.kelly.reader.ui.reader
 
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.ReaderSettings
+import com.kelly.reader.domain.formatPercent
 
 /**
  * What the reader shows. [offset] is the char index of the current page start and the one
@@ -58,8 +59,8 @@ data class ReaderUiState(
             }
         }
 
-    val percent: Int
-        get() = (progress * 100).toInt()
+    val percentLabel: String
+        get() = formatPercent(progress)
 
     val hasPreviousPage: Boolean
         get() = pageIndex > 0

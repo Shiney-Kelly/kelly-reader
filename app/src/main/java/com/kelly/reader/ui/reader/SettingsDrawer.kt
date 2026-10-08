@@ -349,7 +349,7 @@ private fun BookCard(uiState: ReaderUiState) {
         )
         ProgressBar(progress = uiState.progress, height = 4.dp)
         Text(
-            text = stringResource(R.string.reader_page_read, pageLabel, uiState.percent),
+            text = stringResource(R.string.reader_page_read, pageLabel, uiState.percentLabel),
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

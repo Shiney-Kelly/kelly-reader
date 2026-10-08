@@ -66,7 +66,7 @@ class ReaderViewModelTest {
         assertTrue(state.paginationDone)
         assertEquals(3, state.pageCount)
         assertEquals("abcd", state.pageText)
-        assertEquals(33, state.percent)
+        assertEquals("33.33%", state.percentLabel)
     }
 
     @Test
@@ -88,7 +88,7 @@ class ReaderViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(2, viewModel.uiState.value.pageIndex)
         assertFalse(viewModel.uiState.value.hasNextPage)
-        assertEquals(100, viewModel.uiState.value.percent)
+        assertEquals("100.00%", viewModel.uiState.value.percentLabel)
 
         viewModel.previousPage()
         dispatcher.scheduler.advanceUntilIdle()

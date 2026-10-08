@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.Book
+import com.kelly.reader.domain.formatPercent
 import com.kelly.reader.domain.formatSize
 import com.kelly.reader.ui.components.AccentTextButton
 import com.kelly.reader.ui.components.AppIcons
@@ -310,7 +311,6 @@ private fun BookItem(
 
 @Composable
 private fun ProgressRow(book: Book, modifier: Modifier = Modifier) {
-    val percent = (book.progress * 100).toInt()
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -321,7 +321,7 @@ private fun ProgressRow(book: Book, modifier: Modifier = Modifier) {
             text = if (book.isNew) {
                 stringResource(R.string.shelf_new)
             } else {
-                stringResource(R.string.shelf_percent, percent)
+                formatPercent(book.progress)
             },
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
