@@ -1,5 +1,10 @@
 package com.kelly.reader.domain
 
+import kotlin.math.abs
+
+// how many cover colors the theme offers, see LIGHT_COVER_COLORS
+const val COVER_COLOR_COUNT = 9
+
 /**
  * A book on the shelf. The text itself lives in the file named [fileName] under the books folder.
  * [lastOffset] is the char index where the reader resumes, [progress] is 0..1 for the shelf bar,
@@ -22,4 +27,16 @@ data class Book(
      */
     val isNew: Boolean
         get() = openedAt == null
+
+    /**
+     * Index into the cover palette, stable for the file name.
+     */
+    val coverColorIndex: Int
+        get() = abs(fileName.hashCode()) % COVER_COLOR_COUNT
+
+    /**
+     * The first character of the title for the cover, whole even when it is a surrogate pair.
+     */
+    val glyph: String
+        get() = if (title.isEmpty()) "" else String(Character.toChars(title.codePointAt(0)))
 }
