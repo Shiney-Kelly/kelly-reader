@@ -7,28 +7,43 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
+import com.kelly.reader.di.appContainer
 import com.kelly.reader.ui.add.AddBooksRoute
 import com.kelly.reader.ui.reader.ReaderRoute
 import com.kelly.reader.ui.shelf.ShelfRoute
 
 /**
- * The whole app below the theme. Starts on the shelf; the launch rule for a recent book comes
- * with the app ViewModel.
+ * The whole app below the theme. Shows only the background until the start route is known,
+ * so a recent book opens without the shelf flashing first.
  */
 @Composable
 fun KellyReaderApp(modifier: Modifier = Modifier) {
-    val navController = rememberNavController()
+    val container = appContainer()
+    val appViewModel: AppViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { AppViewModel(container.settingsRepository, container.bookRepository) }
+        },
+    )
+    val startRoute by appViewModel.startRoute.collectAsStateWithLifecycle()
+
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        AppNavHost(navController = navController, startRoute = Routes.SHELF)
+        startRoute?.let { route ->
+            AppNavHost(navController = rememberNavController(), startRoute = route)
+        }
     }
 }
 
@@ -53,8 +68,22 @@ private fun AppNavHost(navController: NavHostController, startRoute: String) {
             }
             ReaderRoute(
                 bookId = bookId,
-                onBackToShelf = { navController.popBackStack() },
+                onBackToShelf = { navController.backToShelf() },
             )
+        }
+    }
+}
+
+/**
+ * Leaves the reader for the shelf. Pops when the shelf is below on the stack; when the reader
+ * was the start destination, the shelf replaces it instead.
+ */
+private fun NavHostController.backToShelf() {
+    if (previousBackStackEntry != null) {
+        popBackStack()
+    } else {
+        navigate(Routes.SHELF) {
+            popUpTo(graph.id) { inclusive = true }
         }
     }
 }
