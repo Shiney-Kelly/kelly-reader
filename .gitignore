@@ -10,7 +10,6 @@ build/
 # local machine settings
 local.properties
 .DS_Store
-/docs/
 .local/
 
 # android studio, keep only the shared code style and inspections

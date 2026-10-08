@@ -1,5 +1,5 @@
 /*
- * Every color in the app, taken from the design handoff tokens. See docs/design.md.
+ * Every color in the app, taken from the design tokens.
  */
 package com.kelly.reader.ui.theme
 

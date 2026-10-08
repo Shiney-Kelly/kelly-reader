@@ -9,7 +9,7 @@ private const val KB = 1024.0
 private const val MB = KB * 1024
 
 /**
- * Formats reading [progress] (0..1) with two decimals, as the owner wants it: "98.88%".
+ * Formats reading [progress] (0..1) with two decimals: "98.88%".
  */
 fun formatPercent(progress: Float): String =
     String.format(Locale.US, "%.2f%%", progress.coerceIn(0f, 1f) * 100)
