@@ -80,7 +80,8 @@ class ReaderViewModel(
             _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
             return
         }
-        _uiState.update { it.copy(pageStarts = null, paginationDone = false) }
+        // the old pages stay on screen until the new ones arrive, so nothing flashes blank
+        _uiState.update { it.copy(paginationDone = false) }
         paginationJob = viewModelScope.launch {
             var last: IntArray? = null
             Paginator.paginate(text, measurer, paginationDispatcher).conflate().collect { starts ->

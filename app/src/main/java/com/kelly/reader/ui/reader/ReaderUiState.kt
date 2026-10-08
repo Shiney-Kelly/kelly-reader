@@ -28,8 +28,15 @@ data class ReaderUiState(
     val pageCount: Int?
         get() = if (paginationDone) pageStarts?.size else null
 
+    /**
+     * True once the page holding [offset] has both ends known: a later page start exists, or
+     * every page is known. Before that the page would run to the end of the book.
+     */
+    val pageKnown: Boolean
+        get() = pageStarts?.let { paginationDone || it.last() > offset } ?: false
+
     val pageText: String
-        get() = pageStarts?.let { Paginator.pageText(text, it, pageIndex) } ?: ""
+        get() = if (pageKnown) Paginator.pageText(text, requireNotNull(pageStarts), pageIndex) else ""
 
     /**
      * Progress in 0..1: by page once the count is known, by chars before that.
