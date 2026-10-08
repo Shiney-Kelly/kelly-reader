@@ -1,0 +1,145 @@
+package com.kelly.reader.ui.reader
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+import com.kelly.reader.data.BookRepository
+import com.kelly.reader.data.SettingsRepository
+import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ReaderFont
+import com.kelly.reader.domain.ReaderSettings
+
+/**
+ * Loads the book, paginates it for the measurer the screen hands over, moves between pages
+ * and saves the position. The settings come from and go to the settings repository.
+ */
+class ReaderViewModel(
+    private val bookId: String,
+    private val bookRepository: BookRepository,
+    private val settingsRepository: SettingsRepository,
+    private val paginationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ReaderUiState())
+    val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
+
+    private var paginationJob: Job? = null
+    private var measurerKey: Any? = null
+    private var measurer: PageMeasurer? = null
+    private val cache = HashMap<Any, IntArray>()
+
+    init {
+        viewModelScope.launch {
+            val book = bookRepository.getBook(bookId) ?: return@launch
+            val text = bookRepository.readText(book)
+            _uiState.update { it.copy(book = book, text = text, offset = book.lastOffset) }
+            settingsRepository.setRecentBookId(bookId)
+            paginate()
+        }
+        viewModelScope.launch {
+            settingsRepository.readerSettings.collect { settings ->
+                _uiState.update { it.copy(settings = settings) }
+            }
+        }
+    }
+
+    /**
+     * The screen calls this once it knows the page size and text style. [key] names that
+     * combination: the same key reuses the pages already found, a new key paginates again.
+     */
+    fun setPageMeasurer(key: Any, measurer: PageMeasurer) {
+        if (key == measurerKey) return
+        measurerKey = key
+        this.measurer = measurer
+        paginate()
+    }
+
+    private fun paginate() {
+        val key = measurerKey ?: return
+        val measurer = measurer ?: return
+        val text = _uiState.value.text
+        if (_uiState.value.book == null) return
+        paginationJob?.cancel()
+        cache[key]?.let { starts ->
+            _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
+            return
+        }
+        _uiState.update { it.copy(pageStarts = null, paginationDone = false) }
+        paginationJob = viewModelScope.launch {
+            var last: IntArray? = null
+            Paginator.paginate(text, measurer, paginationDispatcher).conflate().collect { starts ->
+                last = starts
+                _uiState.update { it.copy(pageStarts = starts) }
+            }
+            last?.let { starts ->
+                cache[key] = starts
+                _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
+                saveProgress()
+            }
+        }
+    }
+
+    fun nextPage() {
+        val state = _uiState.value
+        val starts = state.pageStarts ?: return
+        if (!state.hasNextPage) return
+        moveTo(starts[state.pageIndex + 1])
+    }
+
+    fun previousPage() {
+        val state = _uiState.value
+        val starts = state.pageStarts ?: return
+        if (!state.hasPreviousPage) return
+        moveTo(starts[state.pageIndex - 1])
+    }
+
+    private fun moveTo(offset: Int) {
+        _uiState.update { it.copy(offset = offset) }
+        saveProgress()
+    }
+
+    private fun saveProgress() {
+        val state = _uiState.value
+        val book = state.book ?: return
+        viewModelScope.launch {
+            bookRepository.saveProgress(book.id, state.offset, state.progress)
+        }
+    }
+
+    // ----- settings -----
+
+    fun increaseFontSize() {
+        changeFontSize(+1)
+    }
+
+    fun decreaseFontSize() {
+        changeFontSize(-1)
+    }
+
+    private fun changeFontSize(delta: Int) {
+        val size = (_uiState.value.settings.fontSize + delta)
+            .coerceIn(ReaderSettings.MIN_FONT_SIZE, ReaderSettings.MAX_FONT_SIZE)
+        viewModelScope.launch { settingsRepository.setFontSize(size) }
+    }
+
+    fun setLineSpacing(spacing: LineSpacing) {
+        viewModelScope.launch { settingsRepository.setLineSpacing(spacing) }
+    }
+
+    fun setFont(font: ReaderFont) {
+        viewModelScope.launch { settingsRepository.setFont(font) }
+    }
+
+    fun setThemeKey(key: String) {
+        viewModelScope.launch { settingsRepository.setThemeKey(key) }
+    }
+}
