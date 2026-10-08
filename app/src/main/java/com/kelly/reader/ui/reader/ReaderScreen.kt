@@ -80,24 +80,58 @@ fun pageTextStyle(settings: ReaderSettings): TextStyle = TextStyle(
 )
 
 /**
- * The reader: a thin title row, the page text, and a footer with the page number and the
- * percentage. [onPageMeasurer] gets a measurer for the current page size and style.
+ * The reader: a thin title row, the page text, a footer with the page number and the
+ * percentage, and the settings drawer over it all when [drawerOpen]. [onPageMeasurer] gets a
+ * measurer for the current page size and style.
  */
 @Composable
 fun ReaderScreen(
+    uiState: ReaderUiState,
+    theme: ReaderTheme,
+    drawerOpen: Boolean,
+    onSettingsClick: () -> Unit,
+    onCloseSettings: () -> Unit,
+    onBackToShelf: () -> Unit,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
+    onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize().background(theme.background)) {
+        ReaderPage(
+            uiState = uiState,
+            theme = theme,
+            onSettingsClick = onSettingsClick,
+            onPreviousPage = onPreviousPage,
+            onNextPage = onNextPage,
+            onPageMeasurer = onPageMeasurer,
+        )
+        SettingsDrawer(
+            open = drawerOpen,
+            uiState = uiState,
+            onClose = onCloseSettings,
+            onBackToShelf = onBackToShelf,
+        ) {
+        }
+    }
+}
+
+/**
+ * The page itself: title row, text and footer, inside the system bars.
+ */
+@Composable
+private fun ReaderPage(
     uiState: ReaderUiState,
     theme: ReaderTheme,
     onSettingsClick: () -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
     onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val style = pageTextStyle(uiState.settings).copy(color = theme.ink)
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .background(theme.background)
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
@@ -237,7 +271,7 @@ private val PREVIEW_STATE = ReaderUiState(
 @Composable
 private fun ReaderScreenPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, false, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -245,7 +279,7 @@ private fun ReaderScreenPreview() {
 @Composable
 private fun ReaderScreenDarkPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, false, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -253,6 +287,6 @@ private fun ReaderScreenDarkPreview() {
 @Composable
 private fun ReaderScreenPaperPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, true, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }

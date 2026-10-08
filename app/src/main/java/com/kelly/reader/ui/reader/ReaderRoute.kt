@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,12 +39,17 @@ fun ReaderRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val theme = ReaderTheme.fromKey(uiState.settings.themeKey)
         ?: ReaderTheme.forSystem(isSystemInDarkTheme())
+    var drawerOpen by rememberSaveable { mutableStateOf(false) }
 
-    BackHandler(onBack = onBackToShelf)
+    // back closes the drawer first, then leaves for the shelf
+    BackHandler { if (drawerOpen) drawerOpen = false else onBackToShelf() }
     ReaderScreen(
         uiState = uiState,
         theme = theme,
-        onSettingsClick = {},
+        drawerOpen = drawerOpen,
+        onSettingsClick = { drawerOpen = true },
+        onCloseSettings = { drawerOpen = false },
+        onBackToShelf = onBackToShelf,
         onPreviousPage = viewModel::previousPage,
         onNextPage = viewModel::nextPage,
         onPageMeasurer = viewModel::setPageMeasurer,
