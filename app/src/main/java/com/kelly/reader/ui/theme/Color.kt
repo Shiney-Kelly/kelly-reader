@@ -5,14 +5,6 @@ package com.kelly.reader.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// template colors, replaced by the theme rewrite
-val PURPLE_80 = Color(0xFFD0BCFF)
-val PURPLE_GREY_80 = Color(0xFFCCC2DC)
-val PINK_80 = Color(0xFFEFB8C8)
-val PURPLE_40 = Color(0xFF6650A4)
-val PURPLE_GREY_40 = Color(0xFF625B71)
-val PINK_40 = Color(0xFF7D5260)
-
 // ----- shared -----
 
 val ACCENT = Color(0xFF56699A)
