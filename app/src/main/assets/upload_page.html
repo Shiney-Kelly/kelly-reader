@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kelly Reader · Add books</title>
+<style>
+  :root { --bg: #F4F3F0; --surface: #FFFFFF; --ink: #2E3035; --muted: #5F6368; --line: #E1E2E5;
+          --tint: #ECEEF4; --tint-ink: #3E4A6E; --accent: #56699A; --ok-bg: #E4F2E8; --ok-ink: #1E6B3A;
+          --err-bg: #F6E9E7; --err-ink: #8C3F38; --track: #E1E3E7; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1C1D20; --surface: #26282C; --ink: #E3E1DC; --muted: #A3A6AB; --line: #3A3D42;
+            --tint: #2E3340; --tint-ink: #C3CCE6; --ok-bg: #22362A; --ok-ink: #8FCCA2;
+            --err-bg: #3D2826; --err-ink: #E3A39B; --track: #3A3D42; }
+  }
+  body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  main { max-width: 560px; margin: 0 auto; padding: 32px 20px 48px; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  p { color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
+  #drop { border: 2px dashed var(--line); border-radius: 18px; background: var(--surface);
+          padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color .15s; }
+  #drop.over { border-color: var(--accent); }
+  #drop strong { display: block; font-size: 17px; margin-bottom: 6px; }
+  #drop span { color: var(--muted); font-size: 14px; }
+  input[type=file] { display: none; }
+  ul { list-style: none; padding: 0; margin: 20px 0 0; }
+  li { background: var(--surface); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; }
+  .name { font-weight: 600; word-break: break-all; }
+  .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; margin-top: 8px; }
+  .bar div { height: 4px; background: var(--accent); width: 0; transition: width .1s; }
+  .ok .sub { color: var(--ok-ink); }
+  .err .sub { color: var(--err-ink); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Add books</h1>
+  <p>Drop plain text files (.txt, UTF-8) here, or tap to choose. Any language works. They show up on the phone right away.</p>
+  <label id="drop" for="files">
+    <strong>Drop .txt files here</strong>
+    <span>or tap to choose files</span>
+    <input id="files" type="file" multiple accept=".txt,text/plain">
+  </label>
+  <ul id="list"></ul>
+</main>
+<script>
+  const drop = document.getElementById('drop');
+  const input = document.getElementById('files');
+  const list = document.getElementById('list');
+  const queue = [];
+  let busy = false;
+
+  function formatSize(bytes) {
+    return bytes < 1048576 ? Math.round(bytes / 1024) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function addRow(file) {
+    const li = document.createElement('li');
+    li.innerHTML = '<div class="name"></div><div class="sub"></div><div class="bar"><div></div></div>';
+    li.querySelector('.name').textContent = file.name;
+    li.querySelector('.sub').textContent = formatSize(file.size) + ' · Waiting';
+    list.appendChild(li);
+    return li;
+  }
+
+  function setStatus(li, text, cls) {
+    li.querySelector('.sub').textContent = formatSize(li.file.size) + ' · ' + text;
+    if (cls) li.classList.add(cls);
+    if (cls) li.querySelector('.bar').remove();
+  }
+
+  // one file at a time, so the phone shows one clear progress bar
+  function upload(li) {
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload');
+      xhr.setRequestHeader('X-File-Name', encodeURIComponent(li.file.name));
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          li.querySelector('.bar div').style.width = pct + '%';
+          setStatus(li, 'Uploading… ' + pct + '%');
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) setStatus(li, 'Added to shelf', 'ok');
+        else setStatus(li, xhr.responseText || ('Failed (' + xhr.status + ')'), 'err');
+        resolve();
+      };
+      xhr.onerror = () => { setStatus(li, 'Connection lost', 'err'); resolve(); };
+      xhr.send(li.file);
+    });
+  }
+
+  async function drain() {
+    if (busy) return;
+    busy = true;
+    while (queue.length) await upload(queue.shift());
+    busy = false;
+  }
+
+  function enqueue(files) {
+    for (const file of files) {
+      const li = addRow(file);
+      li.file = file;
+      queue.push(li);
+    }
+    drain();
+  }
+
+  input.addEventListener('change', () => { enqueue(input.files); input.value = ''; });
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    enqueue(e.dataTransfer.files);
+  });
+</script>
+</body>
+</html>
