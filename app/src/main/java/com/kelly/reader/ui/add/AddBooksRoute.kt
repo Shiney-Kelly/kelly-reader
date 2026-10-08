@@ -1,21 +1,45 @@
 package com.kelly.reader.ui.add
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import android.content.ClipData
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.toClipEntry
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import kotlinx.coroutines.launch
+
+import com.kelly.reader.di.appContainer
 
 /**
- * The add books screen entry. A placeholder until the upload screen lands.
+ * The add books screen entry: builds the ViewModel, which runs the upload server while this
+ * screen is on the back stack, and wires the clipboard for the Copy button.
  */
 @Composable
 fun AddBooksRoute(onBack: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text(text = "Add books")
-        Button(onClick = onBack) { Text(text = "Back") }
-    }
+    val container = appContainer()
+    val viewModel: AddBooksViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { AddBooksViewModel(container.newUploadServer(), container.wifiAddress()) }
+        },
+    )
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+
+    AddBooksScreen(
+        uiState = uiState,
+        onBack = onBack,
+        onCopy = { address ->
+            scope.launch {
+                clipboard.setClipEntry(ClipData.newPlainText("address", address).toClipEntry())
+                viewModel.onAddressCopied()
+            }
+        },
+        modifier = modifier,
+    )
 }
