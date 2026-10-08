@@ -5,15 +5,20 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 import com.kelly.reader.data.BookRepository
+import com.kelly.reader.data.SettingsRepository
 
 /**
  * State for the bookshelf: the books from the repository plus the edit mode and selection.
  */
-class ShelfViewModel(private val bookRepository: BookRepository) : ViewModel() {
+class ShelfViewModel(
+    private val bookRepository: BookRepository,
+    private val settingsRepository: SettingsRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ShelfUiState())
     val uiState: StateFlow<ShelfUiState> = _uiState.asStateFlow()
@@ -22,9 +27,13 @@ class ShelfViewModel(private val bookRepository: BookRepository) : ViewModel() {
         viewModelScope.launch {
             bookRepository.observeBooks().collect { books ->
                 _uiState.update { state ->
-                    // drop selections of books that are gone
+                    // drop selections of books that are gone, and leave edit mode on an empty shelf
                     val ids = books.map { it.id }.toSet()
-                    state.copy(books = books, selected = state.selected intersect ids)
+                    state.copy(
+                        books = books,
+                        selected = state.selected intersect ids,
+                        editing = state.editing && books.isNotEmpty(),
+                    )
                 }
             }
         }
@@ -46,6 +55,22 @@ class ShelfViewModel(private val bookRepository: BookRepository) : ViewModel() {
             if (!state.editing) return@update state
             val selected = if (id in state.selected) state.selected - id else state.selected + id
             state.copy(selected = selected)
+        }
+    }
+
+    /**
+     * Deletes the selected books right away. The recent book is forgotten when it was one of
+     * them. Edit mode stays on while books remain.
+     */
+    fun deleteSelected() {
+        val ids = _uiState.value.selected.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            if (settingsRepository.recentBookId.first() in ids) {
+                settingsRepository.setRecentBookId(null)
+            }
+            bookRepository.deleteBooks(ids)
+            _uiState.update { it.copy(selected = emptySet()) }
         }
     }
 }

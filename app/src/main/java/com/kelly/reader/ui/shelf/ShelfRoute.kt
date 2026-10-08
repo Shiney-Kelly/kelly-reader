@@ -22,7 +22,11 @@ fun ShelfRoute(
 ) {
     val container = appContainer()
     val viewModel: ShelfViewModel = viewModel(
-        factory = viewModelFactory { initializer { ShelfViewModel(container.bookRepository) } },
+        factory = viewModelFactory {
+            initializer {
+                ShelfViewModel(container.bookRepository, container.settingsRepository)
+            }
+        },
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -32,6 +36,7 @@ fun ShelfRoute(
         onEditClick = viewModel::startEditing,
         onDoneClick = viewModel::stopEditing,
         onAddClick = onAddBooks,
+        onDeleteClick = viewModel::deleteSelected,
         modifier = modifier,
     )
 }

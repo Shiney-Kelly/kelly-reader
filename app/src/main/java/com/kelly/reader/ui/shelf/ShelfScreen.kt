@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,6 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -53,7 +58,8 @@ import com.kelly.reader.ui.theme.AppTheme
 import com.kelly.reader.ui.theme.KellyReaderTheme
 
 /**
- * The bookshelf: a title row with Edit and Add, and a three column grid of covers.
+ * The bookshelf: a title row with Edit and Add, a three column grid of covers, and the delete
+ * bar at the bottom while books are selected.
  */
 @Composable
 fun ShelfScreen(
@@ -62,27 +68,81 @@ fun ShelfScreen(
     onEditClick: () -> Unit,
     onDoneClick: () -> Unit,
     onAddClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize().statusBarsPadding()) {
-        ShelfTopBar(
-            uiState = uiState,
-            onEditClick = onEditClick,
-            onDoneClick = onDoneClick,
-            onAddClick = onAddClick,
-        )
-        val books = uiState.books ?: return
-        if (books.isEmpty()) {
-            EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
-        } else {
-            BookGrid(
-                books = books,
-                editing = uiState.editing,
-                selected = uiState.selected,
-                onBookClick = onBookClick,
-                modifier = Modifier.weight(1f),
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            ShelfTopBar(
+                uiState = uiState,
+                onEditClick = onEditClick,
+                onDoneClick = onDoneClick,
+                onAddClick = onAddClick,
+            )
+            val books = uiState.books
+            when {
+                books == null -> Unit
+                books.isEmpty() -> EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
+                else -> BookGrid(
+                    books = books,
+                    editing = uiState.editing,
+                    selected = uiState.selected,
+                    onBookClick = onBookClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (uiState.editing && uiState.selectedCount > 0) {
+            DeleteBar(
+                selectedCount = uiState.selectedCount,
+                onDeleteClick = onDeleteClick,
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+    }
+}
+
+/**
+ * The bottom bar in edit mode: how many books are selected and the red Delete button.
+ */
+@Composable
+private fun DeleteBar(
+    selectedCount: Int,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val lineColor = MaterialTheme.colorScheme.outlineVariant
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(elevation = 6.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            .drawBehind {
+                drawLine(
+                    color = lineColor,
+                    start = Offset.Zero,
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+            .navigationBarsPadding()
+            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = pluralStringResource(R.plurals.shelf_books_selected, selectedCount, selectedCount),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        PillButton(
+            label = stringResource(R.string.shelf_delete),
+            onClick = onDeleteClick,
+            icon = AppIcons.TRASH,
+            height = 48.dp,
+            containerColor = MaterialTheme.colorScheme.tertiary,
+        )
     }
 }
 
@@ -288,7 +348,7 @@ internal val PREVIEW_BOOKS = listOf(
 private fun ShelfScreenPreview() {
     KellyReaderTheme {
         Box(modifier = Modifier.height(844.dp)) {
-            ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {})
+            ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {}, {})
         }
     }
 }
@@ -297,7 +357,7 @@ private fun ShelfScreenPreview() {
 @Composable
 private fun ShelfScreenDarkPreview() {
     KellyReaderTheme {
-        ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {})
+        ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {}, {})
     }
 }
 
@@ -305,7 +365,7 @@ private fun ShelfScreenDarkPreview() {
 @Composable
 private fun ShelfScreenEmptyPreview() {
     KellyReaderTheme {
-        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {})
+        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {})
     }
 }
 
@@ -315,7 +375,7 @@ private fun ShelfScreenEditPreview() {
     KellyReaderTheme {
         ShelfScreen(
             ShelfUiState(books = PREVIEW_BOOKS, editing = true, selected = setOf("b3", "b6")),
-            {}, {}, {}, {},
+            {}, {}, {}, {}, {},
         )
     }
 }

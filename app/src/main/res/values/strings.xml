@@ -15,4 +15,9 @@
     <string name="shelf_empty_title">Your shelf is empty</string>
     <string name="shelf_empty_help">Send .txt files from a computer or phone over Wi-Fi. They show up here.</string>
     <string name="shelf_empty_add">Add books</string>
+    <string name="shelf_delete">Delete</string>
+    <plurals name="shelf_books_selected">
+        <item quantity="one">%1$d book selected</item>
+        <item quantity="other">%1$d books selected</item>
+    </plurals>
 </resources>
