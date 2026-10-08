@@ -1,0 +1,26 @@
+# gradle and build output
+.gradle/
+.kotlin/
+build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.hprof
+
+# local machine settings
+local.properties
+.DS_Store
+/docs/
+.local/
+
+# android studio, keep only the shared code style and inspections
+*.iml
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+
+# signing keys and service config
+*.jks
+*.keystore
+keystore.properties
+google-services.json
