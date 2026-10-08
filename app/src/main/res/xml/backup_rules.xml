@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto backup rules for Android 11 and older. Android 12 and newer read
+    data_extraction_rules.xml instead. Empty means back up everything.
+-->
+<full-backup-content>
+    <!--
+    <include domain="sharedpref" path="."/>
+    <exclude domain="sharedpref" path="device.xml"/>
+    -->
+</full-backup-content>
