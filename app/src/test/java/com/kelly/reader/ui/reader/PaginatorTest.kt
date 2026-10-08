@@ -1,0 +1,70 @@
+package com.kelly.reader.ui.reader
+
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+/**
+ * Checks paging with a fake measurer that fits a fixed number of chars per page.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class PaginatorTest {
+
+    private val dispatcher = UnconfinedTestDispatcher()
+
+    private fun fixed(perPage: Int) = PageMeasurer { text, start -> minOf(perPage, text.length - start) }
+
+    @Test
+    fun paginate_textLongerThanPages_splitsEvenly() = runTest {
+        val starts = Paginator.paginate("abcdefghij", fixed(4), dispatcher).last()
+        assertArrayEquals(intArrayOf(0, 4, 8), starts)
+    }
+
+    @Test
+    fun paginate_exactMultiple_hasNoEmptyLastPage() = runTest {
+        val starts = Paginator.paginate("abcdefgh", fixed(4), dispatcher).last()
+        assertArrayEquals(intArrayOf(0, 4), starts)
+    }
+
+    @Test
+    fun paginate_emptyText_isOneEmptyPage() = runTest {
+        val starts = Paginator.paginate("", fixed(4), dispatcher).last()
+        assertArrayEquals(intArrayOf(0), starts)
+        assertEquals("", Paginator.pageText("", starts, 0))
+    }
+
+    @Test
+    fun paginate_emitsAfterEveryPage() = runTest {
+        val emissions = Paginator.paginate("abcdef", fixed(2), dispatcher).toList()
+        assertEquals(3, emissions.size)
+        assertArrayEquals(intArrayOf(0), emissions[0])
+        assertArrayEquals(intArrayOf(0, 2, 4), emissions[2])
+    }
+
+    @Test
+    fun paginate_measurerSaysZero_stillAdvances() = runTest {
+        val starts = Paginator.paginate("abc", { _, _ -> 0 }, dispatcher).last()
+        assertArrayEquals(intArrayOf(0, 1, 2), starts)
+    }
+
+    @Test
+    fun pageIndexFor_findsPageHoldingOffset() {
+        val starts = intArrayOf(0, 4, 8)
+        assertEquals(0, Paginator.pageIndexFor(starts, 0))
+        assertEquals(0, Paginator.pageIndexFor(starts, 3))
+        assertEquals(1, Paginator.pageIndexFor(starts, 4))
+        assertEquals(2, Paginator.pageIndexFor(starts, 100))
+    }
+
+    @Test
+    fun pageText_returnsSliceOfPage() {
+        val starts = intArrayOf(0, 4, 8)
+        assertEquals("abcd", Paginator.pageText("abcdefghij", starts, 0))
+        assertEquals("ij", Paginator.pageText("abcdefghij", starts, 2))
+    }
+}
