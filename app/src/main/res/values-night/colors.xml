@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the window background before compose draws, same as the dark bg token -->
+    <color name="window_background">#1C1D20</color>
+</resources>
