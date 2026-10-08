@@ -30,11 +30,13 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -202,7 +204,9 @@ private fun PageArea(
     onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val textMeasurer = rememberTextMeasurer()
+    val fontFamilyResolver = LocalFontFamilyResolver.current
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     var size by remember { mutableStateOf(IntSize.Zero) }
     val key = PageKey(
         widthPx = size.width,
@@ -213,6 +217,9 @@ private fun PageArea(
     )
     LaunchedEffect(key) {
         if (size.width > 0 && size.height > 0) {
+            // a measurer of its own per run, with no cache, so a run being cancelled and the
+            // next one never share state across threads
+            val textMeasurer = TextMeasurer(fontFamilyResolver, density, layoutDirection, cacheSize = 0)
             onPageMeasurer(key, ComposePageMeasurer(textMeasurer, style, size.width, size.height))
         }
     }
