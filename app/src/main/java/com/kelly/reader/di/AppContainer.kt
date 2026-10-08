@@ -5,6 +5,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.io.File
 
 import com.kelly.reader.data.BookRepository
+import com.kelly.reader.data.DataStoreSettingsRepository
+import com.kelly.reader.data.RoomBookRepository
 import com.kelly.reader.data.SettingsRepository
 import com.kelly.reader.data.db.AppDatabase
 
@@ -22,10 +24,10 @@ class AppContainer(context: Context) {
     val database: AppDatabase by lazy { AppDatabase.build(appContext) }
 
     val bookRepository: BookRepository by lazy {
-        BookRepository(database.bookDao(), File(appContext.filesDir, "books"))
+        RoomBookRepository(database.bookDao(), File(appContext.filesDir, "books"))
     }
 
     val settingsRepository: SettingsRepository by lazy {
-        SettingsRepository(appContext.settingsStore)
+        DataStoreSettingsRepository(appContext.settingsStore)
     }
 }

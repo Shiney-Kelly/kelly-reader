@@ -13,19 +13,50 @@ import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 
 /**
- * The recent book and the reading settings, kept in Preferences DataStore.
+ * The recent book and the reading settings. An interface so tests can use a fake.
  */
-class SettingsRepository(private val dataStore: DataStore<Preferences>) {
+interface SettingsRepository {
 
     /**
      * Id of the book the app opens on launch, or null when there is none.
      */
-    val recentBookId: Flow<String?> = dataStore.data.map { prefs -> prefs[RECENT_BOOK_ID] }
+    val recentBookId: Flow<String?>
 
     /**
      * The reading settings, with defaults for anything not set yet.
      */
-    val readerSettings: Flow<ReaderSettings> = dataStore.data.map { prefs ->
+    val readerSettings: Flow<ReaderSettings>
+
+    /**
+     * Remembers [id] as the recent book, or forgets it when null.
+     */
+    suspend fun setRecentBookId(id: String?)
+
+    /**
+     * Stores the font size, clamped to the allowed range.
+     */
+    suspend fun setFontSize(size: Int)
+
+    suspend fun setLineSpacing(spacing: LineSpacing)
+
+    suspend fun setFont(font: ReaderFont)
+
+    /**
+     * Stores the reader theme by its key. The user cannot unset it once picked.
+     */
+    suspend fun setThemeKey(key: String)
+}
+
+/**
+ * Settings kept in Preferences DataStore.
+ */
+class DataStoreSettingsRepository(
+    private val dataStore: DataStore<Preferences>,
+) : SettingsRepository {
+
+    override val recentBookId: Flow<String?> = dataStore.data.map { prefs -> prefs[RECENT_BOOK_ID] }
+
+    override val readerSettings: Flow<ReaderSettings> = dataStore.data.map { prefs ->
         ReaderSettings(
             fontSize = prefs[FONT_SIZE] ?: ReaderSettings.DEFAULT_FONT_SIZE,
             lineSpacing = LineSpacing.fromKey(prefs[LINE_SPACING]),
@@ -34,35 +65,26 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         )
     }
 
-    /**
-     * Remembers [id] as the recent book, or forgets it when null.
-     */
-    suspend fun setRecentBookId(id: String?) {
+    override suspend fun setRecentBookId(id: String?) {
         dataStore.edit { prefs ->
             if (id == null) prefs.remove(RECENT_BOOK_ID) else prefs[RECENT_BOOK_ID] = id
         }
     }
 
-    /**
-     * Stores the font size, clamped to the allowed range.
-     */
-    suspend fun setFontSize(size: Int) {
+    override suspend fun setFontSize(size: Int) {
         val clamped = size.coerceIn(ReaderSettings.MIN_FONT_SIZE, ReaderSettings.MAX_FONT_SIZE)
         dataStore.edit { prefs -> prefs[FONT_SIZE] = clamped }
     }
 
-    suspend fun setLineSpacing(spacing: LineSpacing) {
+    override suspend fun setLineSpacing(spacing: LineSpacing) {
         dataStore.edit { prefs -> prefs[LINE_SPACING] = spacing.key }
     }
 
-    suspend fun setFont(font: ReaderFont) {
+    override suspend fun setFont(font: ReaderFont) {
         dataStore.edit { prefs -> prefs[FONT] = font.key }
     }
 
-    /**
-     * Stores the reader theme by its key. The user cannot unset it once picked.
-     */
-    suspend fun setThemeKey(key: String) {
+    override suspend fun setThemeKey(key: String) {
         dataStore.edit { prefs -> prefs[THEME] = key }
     }
 
