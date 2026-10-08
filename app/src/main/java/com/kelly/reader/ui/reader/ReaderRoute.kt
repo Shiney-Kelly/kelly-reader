@@ -42,6 +42,8 @@ fun ReaderRoute(
         uiState = uiState,
         theme = theme,
         onSettingsClick = {},
+        onPreviousPage = viewModel::previousPage,
+        onNextPage = viewModel::nextPage,
         onPageMeasurer = viewModel::setPageMeasurer,
         modifier = modifier,
     )

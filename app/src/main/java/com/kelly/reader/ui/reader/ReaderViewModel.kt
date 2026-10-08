@@ -41,7 +41,14 @@ class ReaderViewModel(
         viewModelScope.launch {
             val book = bookRepository.getBook(bookId) ?: return@launch
             val text = bookRepository.readText(book)
-            _uiState.update { it.copy(book = book, text = text, offset = book.lastOffset) }
+            _uiState.update {
+                it.copy(
+                    book = book,
+                    text = text,
+                    isRtl = TextDirectionDetector.isRtl(text),
+                    offset = book.lastOffset.coerceIn(0, text.length),
+                )
+            }
             settingsRepository.setRecentBookId(bookId)
             paginate()
         }

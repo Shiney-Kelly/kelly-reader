@@ -7,11 +7,12 @@ import com.kelly.reader.domain.ReaderSettings
  * What the reader shows. [offset] is the char index of the current page start and the one
  * source of truth for the position; the page index follows from it and [pageStarts].
  * [pageStarts] is null until the first page has been measured, and [paginationDone] turns
- * true once every page is known.
+ * true once every page is known. [isRtl] says the text reads right to left.
  */
 data class ReaderUiState(
     val book: Book? = null,
     val text: String = "",
+    val isRtl: Boolean = false,
     val offset: Int = 0,
     val pageStarts: IntArray? = null,
     val paginationDone: Boolean = false,
@@ -58,6 +59,7 @@ data class ReaderUiState(
         if (other !is ReaderUiState) return false
         return book == other.book &&
             text == other.text &&
+            isRtl == other.isRtl &&
             offset == other.offset &&
             pageStarts.contentEquals(other.pageStarts) &&
             paginationDone == other.paginationDone &&
@@ -67,6 +69,7 @@ data class ReaderUiState(
     override fun hashCode(): Int {
         var result = book.hashCode()
         result = 31 * result + text.hashCode()
+        result = 31 * result + isRtl.hashCode()
         result = 31 * result + offset
         result = 31 * result + (pageStarts?.contentHashCode() ?: 0)
         result = 31 * result + paginationDone.hashCode()

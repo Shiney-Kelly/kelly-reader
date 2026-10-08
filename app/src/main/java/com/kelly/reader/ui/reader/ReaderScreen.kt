@@ -2,6 +2,7 @@ package com.kelly.reader.ui.reader
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,8 +27,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +39,7 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -83,6 +88,8 @@ fun ReaderScreen(
     uiState: ReaderUiState,
     theme: ReaderTheme,
     onSettingsClick: () -> Unit,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
     onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -95,12 +102,18 @@ fun ReaderScreen(
             .navigationBarsPadding(),
     ) {
         ReaderTopRow(title = uiState.book?.title ?: "", muted = theme.muted, onSettingsClick = onSettingsClick)
-        PageArea(
-            text = uiState.pageText,
-            style = style,
-            onPageMeasurer = onPageMeasurer,
-            modifier = Modifier.weight(1f),
-        )
+        // only the page follows the text direction, the title row and footer stay put
+        val direction = if (uiState.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+        CompositionLocalProvider(LocalLayoutDirection provides direction) {
+            PageArea(
+                text = uiState.pageText,
+                style = style,
+                onPreviousPage = onPreviousPage,
+                onNextPage = onNextPage,
+                onPageMeasurer = onPageMeasurer,
+                modifier = Modifier.weight(1f),
+            )
+        }
         ReaderFooter(uiState = uiState, muted = theme.muted)
     }
 }
@@ -141,12 +154,15 @@ private fun ReaderTopRow(
 
 /**
  * The page text. Measures its own size, hands a matching measurer up, and draws the page with
- * the same style and width so the measured lines fit.
+ * the same style and width so the measured lines fit. A tap on the left half goes back a page
+ * and on the right half forward, by screen position whatever the text direction.
  */
 @Composable
 private fun PageArea(
     text: String,
     style: TextStyle,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
     onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -169,7 +185,12 @@ private fun PageArea(
             .fillMaxWidth()
             .padding(start = TEXT_SIDE_PADDING, top = TEXT_TOP_PADDING, end = TEXT_SIDE_PADDING)
             .clipToBounds()
-            .onSizeChanged { size = it },
+            .onSizeChanged { size = it }
+            .pointerInput(Unit) {
+                detectTapGestures { tap ->
+                    if (tap.x < this.size.width / 2) onPreviousPage() else onNextPage()
+                }
+            },
     ) {
         Text(text = text, style = style, overflow = TextOverflow.Clip)
     }
@@ -216,7 +237,7 @@ private val PREVIEW_STATE = ReaderUiState(
 @Composable
 private fun ReaderScreenPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -224,7 +245,7 @@ private fun ReaderScreenPreview() {
 @Composable
 private fun ReaderScreenDarkPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -232,6 +253,6 @@ private fun ReaderScreenDarkPreview() {
 @Composable
 private fun ReaderScreenPaperPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, {}, {}, {}, { _, _ -> })
     }
 }
