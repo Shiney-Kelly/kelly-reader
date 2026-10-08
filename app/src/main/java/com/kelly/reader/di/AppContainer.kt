@@ -7,6 +7,7 @@ import java.io.File
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.DataStoreSettingsRepository
+import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.RoomBookRepository
 import com.kelly.reader.data.SettingsRepository
 import com.kelly.reader.data.WifiAddress
@@ -28,8 +29,10 @@ class AppContainer(context: Context) {
 
     val database: AppDatabase by lazy { AppDatabase.build(appContext) }
 
+    val pageCache: PageCache by lazy { PageCache(File(appContext.filesDir, "pages")) }
+
     val bookRepository: BookRepository by lazy {
-        RoomBookRepository(database.bookDao(), File(appContext.filesDir, "books"))
+        RoomBookRepository(database.bookDao(), File(appContext.filesDir, "books"), pageCache)
     }
 
     val settingsRepository: SettingsRepository by lazy {

@@ -69,7 +69,14 @@ data class PageKey(
     val fontSize: Int,
     val lineSpacingKey: String,
     val fontKey: String,
-)
+) {
+
+    /**
+     * The key as one string, used for the in-memory and on-disk page caches.
+     */
+    val cacheKey: String
+        get() = "${widthPx}x$heightPx-$fontSize-$lineSpacingKey-$fontKey"
+}
 
 /**
  * The text style for the page at the given [settings]: the chosen family, size and line height.
@@ -97,7 +104,7 @@ fun ReaderScreen(
     onBackToShelf: () -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
-    onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
+    onPageMeasurer: (String, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize().background(theme.background)) {
@@ -129,7 +136,7 @@ private fun ReaderPage(
     onSettingsClick: () -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
-    onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
+    onPageMeasurer: (String, PageMeasurer) -> Unit,
 ) {
     val style = pageTextStyle(uiState.settings).copy(color = theme.ink)
     Column(
@@ -200,7 +207,7 @@ private fun PageArea(
     style: TextStyle,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
-    onPageMeasurer: (PageKey, PageMeasurer) -> Unit,
+    onPageMeasurer: (String, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val fontFamilyResolver = LocalFontFamilyResolver.current
@@ -219,7 +226,7 @@ private fun PageArea(
             // a measurer of its own per run, with no cache, so a run being cancelled and the
             // next one never share state across threads
             val textMeasurer = TextMeasurer(fontFamilyResolver, density, layoutDirection, cacheSize = 0)
-            onPageMeasurer(key, ComposePageMeasurer(textMeasurer, style, size.width, size.height))
+            onPageMeasurer(key.cacheKey, ComposePageMeasurer(textMeasurer, style, size.width, size.height))
         }
     }
     Box(

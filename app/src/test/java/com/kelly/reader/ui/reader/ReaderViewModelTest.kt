@@ -13,8 +13,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.nio.file.Files
 
 import com.kelly.reader.data.FakeBookRepository
+import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
@@ -30,6 +32,8 @@ class ReaderViewModelTest {
     private val book = Book("b1", "Harbor", "b1.txt", 10, text.length, 0, lastOffset = 0)
     private val repository = FakeBookRepository(listOf(book)).apply { texts["b1"] = text }
     private val settings = FakeSettingsRepository()
+    private val cacheDir = Files.createTempDirectory("pages").toFile()
+    private val pageCache = PageCache(cacheDir, dispatcher)
 
     private fun fixed(perPage: Int) = PageMeasurer { t, start -> minOf(perPage, t.length - start) }
 
@@ -41,10 +45,11 @@ class ReaderViewModelTest {
     @After
     fun resetMainDispatcher() {
         Dispatchers.resetMain()
+        cacheDir.deleteRecursively()
     }
 
     private fun viewModel(bookId: String = "b1"): ReaderViewModel =
-        ReaderViewModel(bookId, repository, settings, dispatcher).also {
+        ReaderViewModel(bookId, repository, settings, pageCache, dispatcher).also {
             dispatcher.scheduler.advanceUntilIdle()
         }
 
@@ -136,6 +141,25 @@ class ReaderViewModelTest {
         assertEquals(4, state.offset)
         assertEquals(2, state.pageIndex)
         assertEquals("efg", state.pageText)
+    }
+
+    @Test
+    fun setPageMeasurer_cachedOnDisk_skipsMeasuring() = runTest(dispatcher) {
+        pageCache.save("b1", "k", intArrayOf(0, 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k") { _, _ -> error("should not measure") }
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertArrayEquals(intArrayOf(0, 5), state.pageStarts)
+        assertTrue(state.paginationDone)
+    }
+
+    @Test
+    fun setPageMeasurer_savesPagesToDisk() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertArrayEquals(intArrayOf(0, 4, 8), pageCache.load("b1", "k"))
     }
 
     @Test

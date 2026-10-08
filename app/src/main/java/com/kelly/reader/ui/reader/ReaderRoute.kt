@@ -33,7 +33,12 @@ fun ReaderRoute(
         key = bookId,
         factory = viewModelFactory {
             initializer {
-                ReaderViewModel(bookId, container.bookRepository, container.settingsRepository)
+                ReaderViewModel(
+                    bookId,
+                    container.bookRepository,
+                    container.settingsRepository,
+                    container.pageCache,
+                )
             }
         },
     )

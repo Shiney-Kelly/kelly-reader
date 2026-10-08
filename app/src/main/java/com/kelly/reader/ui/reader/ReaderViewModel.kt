@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 import com.kelly.reader.data.BookRepository
+import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.SettingsRepository
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
@@ -26,6 +27,7 @@ class ReaderViewModel(
     private val bookId: String,
     private val bookRepository: BookRepository,
     private val settingsRepository: SettingsRepository,
+    private val pageCache: PageCache,
     private val paginationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
@@ -33,9 +35,9 @@ class ReaderViewModel(
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
     private var paginationJob: Job? = null
-    private var measurerKey: Any? = null
+    private var measurerKey: String? = null
     private var measurer: PageMeasurer? = null
-    private val cache = HashMap<Any, IntArray>()
+    private val cache = HashMap<String, IntArray>()
 
     init {
         viewModelScope.launch {
@@ -61,9 +63,10 @@ class ReaderViewModel(
 
     /**
      * The screen calls this once it knows the page size and text style. [key] names that
-     * combination: the same key reuses the pages already found, a new key paginates again.
+     * combination: the same key reuses the pages already found, in memory or on disk, a new
+     * key paginates again.
      */
-    fun setPageMeasurer(key: Any, measurer: PageMeasurer) {
+    fun setPageMeasurer(key: String, measurer: PageMeasurer) {
         if (key == measurerKey) return
         measurerKey = key
         this.measurer = measurer
@@ -83,6 +86,10 @@ class ReaderViewModel(
         // the old pages stay on screen until the new ones arrive, so nothing flashes blank
         _uiState.update { it.copy(paginationDone = false) }
         paginationJob = viewModelScope.launch {
+            pageCache.load(bookId, key)?.let { starts ->
+                finishPagination(key, starts)
+                return@launch
+            }
             var last: IntArray? = null
             val anchor = _uiState.value.offset
             Paginator.paginate(text, measurer, paginationDispatcher, anchor).conflate().collect { starts ->
@@ -90,11 +97,16 @@ class ReaderViewModel(
                 _uiState.update { it.copy(pageStarts = starts) }
             }
             last?.let { starts ->
-                cache[key] = starts
-                _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
-                saveProgress()
+                pageCache.save(bookId, key, starts)
+                finishPagination(key, starts)
             }
         }
+    }
+
+    private fun finishPagination(key: String, starts: IntArray) {
+        cache[key] = starts
+        _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
+        saveProgress()
     }
 
     fun nextPage() {

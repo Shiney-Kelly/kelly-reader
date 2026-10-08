@@ -60,12 +60,13 @@ interface BookRepository {
 }
 
 /**
- * Books as rows in Room plus one text file per book in [booksDir]. Every call is main-safe;
- * file work runs on [ioDispatcher].
+ * Books as rows in Room plus one text file per book in [booksDir]. Deleting a book also drops
+ * its saved pages from [pageCache]. Every call is main-safe; file work runs on [ioDispatcher].
  */
 class RoomBookRepository(
     private val bookDao: BookDao,
     private val booksDir: File,
+    private val pageCache: PageCache,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : BookRepository {
 
@@ -101,6 +102,7 @@ class RoomBookRepository(
         withContext(ioDispatcher) {
             files.forEach { name -> File(booksDir, name).delete() }
         }
+        ids.forEach { id -> pageCache.clear(id) }
     }
 
     override suspend fun saveProgress(id: String, lastOffset: Int, progress: Float) {
