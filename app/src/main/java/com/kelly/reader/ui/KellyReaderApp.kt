@@ -3,11 +3,16 @@
  */
 package com.kelly.reader.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -17,15 +22,21 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
 
 import com.kelly.reader.di.appContainer
 import com.kelly.reader.ui.add.AddBooksRoute
 import com.kelly.reader.ui.reader.ReaderRoute
 import com.kelly.reader.ui.shelf.ShelfRoute
+import com.kelly.reader.ui.splash.SplashScreen
+
+// how long the splash stays at least, so the icon and the name get their moment
+private const val SPLASH_MIN_MS = 1_500L
 
 /**
- * The whole app below the theme. Shows only the background until the start route is known,
- * so a recent book opens without the shelf flashing first.
+ * The whole app below the theme. Shows the splash until it has run its course and the start
+ * route is known, then fades into the shelf or the recent book. The splash survives rotation
+ * and shows again only on a fresh start.
  */
 @Composable
 fun KellyReaderApp(modifier: Modifier = Modifier) {
@@ -36,13 +47,25 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
         },
     )
     val startRoute by appViewModel.startRoute.collectAsStateWithLifecycle()
+    var splashElapsed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!splashElapsed) {
+            delay(SPLASH_MIN_MS)
+            splashElapsed = true
+        }
+    }
 
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        startRoute?.let { route ->
-            AppNavHost(navController = rememberNavController(), startRoute = route)
+        val route = startRoute
+        Crossfade(targetState = if (splashElapsed) route else null, label = "splash") { target ->
+            if (target == null) {
+                SplashScreen()
+            } else {
+                AppNavHost(navController = rememberNavController(), startRoute = target)
+            }
         }
     }
 }
