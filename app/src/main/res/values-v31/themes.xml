@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        android 12 and newer draw their own splash screen with the launcher icon clipped to a
+        circle, which cannot be changed, so it shows only the background color here and the app
+        draws its own splash right after
+    -->
+    <style name="Theme.KellyReader" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:windowSplashScreenBackground">@color/window_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>
