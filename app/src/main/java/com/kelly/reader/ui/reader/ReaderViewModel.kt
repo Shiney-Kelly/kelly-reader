@@ -18,6 +18,7 @@ import com.kelly.reader.data.SettingsRepository
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
+import com.kelly.reader.domain.ReadingMode
 
 /**
  * Loads the book, paginates it for the measurer the screen hands over, moves between pages
@@ -123,6 +124,16 @@ class ReaderViewModel(
         moveTo(starts[state.pageIndex - 1])
     }
 
+    /**
+     * In scroll mode the screen reports the page now at the top; it becomes the position.
+     */
+    fun moveToPage(index: Int) {
+        val starts = _uiState.value.pageStarts ?: return
+        if (index !in starts.indices) return
+        if (starts[index] == _uiState.value.offset) return
+        moveTo(starts[index])
+    }
+
     private fun moveTo(offset: Int) {
         _uiState.update { it.copy(offset = offset) }
         saveProgress()
@@ -165,5 +176,9 @@ class ReaderViewModel(
      */
     fun setThemeKey(key: String?) {
         viewModelScope.launch { settingsRepository.setThemeKey(key) }
+    }
+
+    fun setReadingMode(mode: ReadingMode) {
+        viewModelScope.launch { settingsRepository.setReadingMode(mode) }
     }
 }

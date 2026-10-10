@@ -20,6 +20,7 @@ import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ReadingMode
 
 /**
  * Checks loading, paging, resuming and saving with a fixed-size fake measurer.
@@ -188,6 +189,28 @@ class ReaderViewModelTest {
         viewModel.setThemeKey(null)
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(null, viewModel.uiState.value.settings.themeKey)
+    }
+
+    @Test
+    fun moveToPage_setsOffsetAndSaves() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.moveToPage(2)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(8, viewModel.uiState.value.offset)
+        assertEquals(8, repository.books.value.single().lastOffset)
+        viewModel.moveToPage(7) // out of range, ignored
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(8, viewModel.uiState.value.offset)
+    }
+
+    @Test
+    fun setReadingMode_goesToRepository() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setReadingMode(ReadingMode.SCROLL)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ReadingMode.SCROLL, viewModel.uiState.value.settings.readingMode)
     }
 
     @Test
