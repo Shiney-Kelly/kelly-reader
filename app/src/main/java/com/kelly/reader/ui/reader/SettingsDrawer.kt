@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.kelly.reader.R
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
+import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.ui.components.AppIcons
 import com.kelly.reader.ui.components.ProgressBar
 import com.kelly.reader.ui.theme.AppTheme
@@ -72,10 +73,11 @@ data class SettingsActions(
     val onLineSpacing: (LineSpacing) -> Unit,
     val onFont: (ReaderFont) -> Unit,
     val onTheme: (ReaderTheme?) -> Unit,
+    val onReadingMode: (ReadingMode) -> Unit,
 ) {
 
     companion object {
-        val NONE = SettingsActions({}, {}, {}, {}, {})
+        val NONE = SettingsActions({}, {}, {}, {}, {}, {})
     }
 }
 
@@ -143,12 +145,29 @@ private fun DrawerPanel(
     ) {
         DrawerHeader(onClose = onClose)
         BookCard(uiState = uiState)
+        ReadingModeSection(selected = uiState.settings.readingMode, onPick = actions.onReadingMode)
         TextSizeSection(fontSize = uiState.settings.fontSize, actions = actions)
         LineSpacingSection(selected = uiState.settings.lineSpacing, onPick = actions.onLineSpacing)
         FontSection(selected = uiState.settings.font, onPick = actions.onFont)
         ThemeSection(selectedKey = uiState.settings.themeKey, onPick = actions.onTheme)
         Spacer(modifier = Modifier.weight(1f))
         BackToShelfButton(onClick = onBackToShelf)
+    }
+}
+
+@Composable
+private fun ReadingModeSection(selected: ReadingMode, onPick: (ReadingMode) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_mode)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ReadingMode.entries.forEach { mode ->
+                SegmentButton(
+                    label = stringResource(mode.labelRes),
+                    selected = mode == selected,
+                    onClick = { onPick(mode) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
     }
 }
 
@@ -308,6 +327,12 @@ private val LineSpacing.labelRes: Int
         LineSpacing.COMPACT -> R.string.reader_spacing_compact
         LineSpacing.NORMAL -> R.string.reader_spacing_normal
         LineSpacing.LOOSE -> R.string.reader_spacing_loose
+    }
+
+private val ReadingMode.labelRes: Int
+    get() = when (this) {
+        ReadingMode.PAGED -> R.string.reader_mode_paged
+        ReadingMode.SCROLL -> R.string.reader_mode_scroll
     }
 
 private val ReaderFont.labelRes: Int
