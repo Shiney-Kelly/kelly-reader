@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -24,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -44,11 +48,13 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
+import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.ui.components.AppIcons
 import com.kelly.reader.ui.theme.FIGTREE
 import com.kelly.reader.ui.theme.KellyReaderTheme
@@ -104,6 +110,7 @@ fun ReaderScreen(
     onBackToShelf: () -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
+    onScrolledToPage: (Int) -> Unit,
     onPageMeasurer: (String, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -114,6 +121,7 @@ fun ReaderScreen(
             onSettingsClick = onSettingsClick,
             onPreviousPage = onPreviousPage,
             onNextPage = onNextPage,
+            onScrolledToPage = onScrolledToPage,
             onPageMeasurer = onPageMeasurer,
         )
         SettingsDrawer(
@@ -136,6 +144,7 @@ private fun ReaderPage(
     onSettingsClick: () -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
+    onScrolledToPage: (Int) -> Unit,
     onPageMeasurer: (String, PageMeasurer) -> Unit,
 ) {
     val style = pageTextStyle(uiState.settings).copy(color = theme.ink)
@@ -150,10 +159,11 @@ private fun ReaderPage(
         val direction = if (uiState.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
             PageArea(
-                text = uiState.pageText,
+                uiState = uiState,
                 style = style,
                 onPreviousPage = onPreviousPage,
                 onNextPage = onNextPage,
+                onScrolledToPage = onScrolledToPage,
                 onPageMeasurer = onPageMeasurer,
                 modifier = Modifier.weight(1f),
             )
@@ -197,16 +207,17 @@ private fun ReaderTopRow(
 }
 
 /**
- * The page text. Measures its own size, hands a matching measurer up, and draws the page with
- * the same style and width so the measured lines fit. A tap on the left half goes back a page
- * and on the right half forward, by screen position whatever the text direction.
+ * The text area. Measures its own size, hands a matching measurer up, and draws the pages with
+ * the same style and width so the measured lines fit: one page at a time in paged mode, or
+ * all pages end to end in scroll mode.
  */
 @Composable
 private fun PageArea(
-    text: String,
+    uiState: ReaderUiState,
     style: TextStyle,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
+    onScrolledToPage: (Int) -> Unit,
     onPageMeasurer: (String, PageMeasurer) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -234,14 +245,85 @@ private fun PageArea(
             .fillMaxWidth()
             .padding(start = TEXT_SIDE_PADDING, top = TEXT_TOP_PADDING, end = TEXT_SIDE_PADDING)
             .clipToBounds()
-            .onSizeChanged { size = it }
-            .pointerInput(Unit) {
-                detectTapGestures { tap ->
-                    if (tap.x < this.size.width / 2) onPreviousPage() else onNextPage()
-                }
-            },
+            .onSizeChanged { size = it },
+    ) {
+        if (uiState.settings.readingMode == ReadingMode.SCROLL) {
+            ScrollingPages(
+                uiState = uiState,
+                style = style,
+                onScrolledToPage = onScrolledToPage,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            SinglePage(
+                text = uiState.pageText,
+                style = style,
+                onPreviousPage = onPreviousPage,
+                onNextPage = onNextPage,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+/**
+ * Paged mode: the current page. A tap on the left half goes back a page and on the right half
+ * forward, by screen position whatever the text direction.
+ */
+@Composable
+private fun SinglePage(
+    text: String,
+    style: TextStyle,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.pointerInput(Unit) {
+            detectTapGestures { tap ->
+                if (tap.x < this.size.width / 2) onPreviousPage() else onNextPage()
+            }
+        },
     ) {
         Text(text = text, style = style, overflow = TextOverflow.Clip)
+    }
+}
+
+/**
+ * Scroll mode: the measured pages laid end to end in a lazy column. Only pages whose end is
+ * known are listed. The page at the top is reported through [onScrolledToPage], and when the
+ * pages change (new text size, or the pages before the resume point arriving) the same text
+ * stays at the top.
+ */
+@Composable
+private fun ScrollingPages(
+    uiState: ReaderUiState,
+    style: TextStyle,
+    onScrolledToPage: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val starts = uiState.pageStarts ?: return
+    val count = if (uiState.paginationDone) starts.size else starts.size - 1
+    if (count <= 0) return
+    val topIndex = uiState.pageIndex.coerceIn(0, count - 1)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = topIndex)
+
+    LaunchedEffect(starts) {
+        if (listState.firstVisibleItemIndex != topIndex) listState.scrollToItem(topIndex)
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { index -> onScrolledToPage(index) }
+    }
+    LazyColumn(state = listState, modifier = modifier) {
+        items(count = count, key = { starts[it] }) { index ->
+            Text(
+                text = Paginator.pageText(uiState.text, starts, index),
+                style = style,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -299,7 +381,7 @@ private val PREVIEW_STATE = ReaderUiState(
 @Composable
 private fun ReaderScreenPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, false, SettingsActions.NONE, {}, {}, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.LIGHT, false, SettingsActions.NONE, {}, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }
 
@@ -307,7 +389,18 @@ private fun ReaderScreenPreview() {
 @Composable
 private fun ReaderScreenDarkPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, false, SettingsActions.NONE, {}, {}, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.DARK, false, SettingsActions.NONE, {}, {}, {}, {}, {}, {}, { _, _ -> })
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun ReaderScreenScrollPreview() {
+    KellyReaderTheme {
+        ReaderScreen(
+            PREVIEW_STATE.copy(settings = ReaderSettings(readingMode = ReadingMode.SCROLL)),
+            ReaderTheme.LIGHT, false, SettingsActions.NONE, {}, {}, {}, {}, {}, {}, { _, _ -> },
+        )
     }
 }
 
@@ -315,6 +408,6 @@ private fun ReaderScreenDarkPreview() {
 @Composable
 private fun ReaderScreenPaperPreview() {
     KellyReaderTheme {
-        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, true, SettingsActions.NONE, {}, {}, {}, {}, {}, { _, _ -> })
+        ReaderScreen(PREVIEW_STATE, ReaderTheme.PAPER, true, SettingsActions.NONE, {}, {}, {}, {}, {}, {}, { _, _ -> })
     }
 }

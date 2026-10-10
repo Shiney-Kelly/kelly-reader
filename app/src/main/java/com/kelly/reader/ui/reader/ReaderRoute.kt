@@ -68,6 +68,7 @@ fun ReaderRoute(
         onBackToShelf = onBackToShelf,
         onPreviousPage = viewModel::previousPage,
         onNextPage = viewModel::nextPage,
+        onScrolledToPage = viewModel::moveToPage,
         onPageMeasurer = viewModel::setPageMeasurer,
         modifier = modifier,
     )
