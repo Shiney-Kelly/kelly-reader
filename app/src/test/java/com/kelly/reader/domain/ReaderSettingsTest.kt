@@ -23,11 +23,19 @@ class ReaderSettingsTest {
     }
 
     @Test
+    fun readingMode_fromKey_knownAndUnknown() {
+        assertEquals(ReadingMode.SCROLL, ReadingMode.fromKey("scroll"))
+        assertEquals(ReadingMode.PAGED, ReadingMode.fromKey("sideways"))
+        assertEquals(ReadingMode.PAGED, ReadingMode.fromKey(null))
+    }
+
+    @Test
     fun readerSettings_defaults_matchDesign() {
         val settings = ReaderSettings()
         assertEquals(19, settings.fontSize)
         assertEquals(LineSpacing.NORMAL, settings.lineSpacing)
         assertEquals(ReaderFont.SERIF, settings.font)
         assertEquals(null, settings.themeKey)
+        assertEquals(ReadingMode.PAGED, settings.readingMode)
     }
 }

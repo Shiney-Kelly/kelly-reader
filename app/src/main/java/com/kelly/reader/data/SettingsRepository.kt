@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.map
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
+import com.kelly.reader.domain.ReadingMode
 
 /**
  * The recent book and the reading settings. An interface so tests can use a fake.
@@ -45,6 +46,8 @@ interface SettingsRepository {
      * Stores the reader theme by its key, or goes back to following the system when null.
      */
     suspend fun setThemeKey(key: String?)
+
+    suspend fun setReadingMode(mode: ReadingMode)
 }
 
 /**
@@ -62,6 +65,7 @@ class DataStoreSettingsRepository(
             lineSpacing = LineSpacing.fromKey(prefs[LINE_SPACING]),
             font = ReaderFont.fromKey(prefs[FONT]),
             themeKey = prefs[THEME],
+            readingMode = ReadingMode.fromKey(prefs[READING_MODE]),
         )
     }
 
@@ -88,11 +92,16 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> if (key == null) prefs.remove(THEME) else prefs[THEME] = key }
     }
 
+    override suspend fun setReadingMode(mode: ReadingMode) {
+        dataStore.edit { prefs -> prefs[READING_MODE] = mode.key }
+    }
+
     private companion object {
         val RECENT_BOOK_ID = stringPreferencesKey("recent_book_id")
         val FONT_SIZE = intPreferencesKey("font_size")
         val LINE_SPACING = stringPreferencesKey("line_spacing")
         val FONT = stringPreferencesKey("font")
         val THEME = stringPreferencesKey("reader_theme")
+        val READING_MODE = stringPreferencesKey("reading_mode")
     }
 }

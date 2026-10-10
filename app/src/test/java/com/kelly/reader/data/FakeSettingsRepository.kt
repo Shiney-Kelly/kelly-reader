@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.update
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
+import com.kelly.reader.domain.ReadingMode
 
 /**
  * In-memory [SettingsRepository] for ViewModel tests.
@@ -42,5 +43,9 @@ class FakeSettingsRepository(
 
     override suspend fun setThemeKey(key: String?) {
         settings.update { it.copy(themeKey = key) }
+    }
+
+    override suspend fun setReadingMode(mode: ReadingMode) {
+        settings.update { it.copy(readingMode = mode) }
     }
 }
