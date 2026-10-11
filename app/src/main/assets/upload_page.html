@@ -17,8 +17,9 @@
   main { max-width: 560px; margin: 0 auto; padding: 32px 20px 48px; }
   h1 { font-size: 24px; margin: 0 0 6px; }
   p { color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
-  #drop { border: 2px dashed var(--line); border-radius: 18px; background: var(--surface);
-          padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color .15s; }
+  #drop { display: block; box-sizing: border-box; border: 2px dashed var(--line); border-radius: 18px;
+          background: var(--surface); padding: 40px 20px; text-align: center; cursor: pointer;
+          transition: border-color .15s; }
   #drop.over { border-color: var(--accent); }
   #drop strong { display: block; font-size: 17px; margin-bottom: 6px; }
   #drop span { color: var(--muted); font-size: 14px; }
