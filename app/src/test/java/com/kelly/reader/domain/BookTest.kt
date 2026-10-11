@@ -40,5 +40,8 @@ class BookTest {
         assertEquals("386 KB", formatSize(386 * 1024L))
         assertEquals("1.2 MB", formatSize((1.2 * 1024 * 1024).toLong()))
         assertEquals("0 KB", formatSize(0))
+        assertEquals("1 KB", formatSize(208))
+        assertEquals("1 KB", formatSize(1024))
+        assertEquals("2 KB", formatSize(1600))
     }
 }
