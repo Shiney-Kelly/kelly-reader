@@ -16,9 +16,10 @@ fun formatPercent(progress: Float): String =
 
 /**
  * Formats [bytes] the way the design shows sizes: "386 KB" below a megabyte, "1.2 MB" above.
+ * Anything under a kilobyte, except nothing at all, shows as "1 KB" rather than "0 KB".
  */
 fun formatSize(bytes: Long): String = if (bytes < MB) {
-    "${Math.round(bytes / KB)} KB"
+    "${Math.round(bytes / KB).coerceAtLeast(if (bytes > 0) 1 else 0)} KB"
 } else {
     String.format(Locale.US, "%.1f MB", bytes / MB)
 }

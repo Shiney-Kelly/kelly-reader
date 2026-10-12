@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -305,7 +306,8 @@ private fun BookItem(
             color = MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
         )
-        ProgressRow(book = book, modifier = Modifier.padding(top = (-2).dp))
+        // the design pulls the progress row 2dp up; padding cannot be negative, an offset can
+        ProgressRow(book = book, modifier = Modifier.offset(y = (-2).dp))
     }
 }
 
