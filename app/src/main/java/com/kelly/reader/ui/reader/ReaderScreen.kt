@@ -57,6 +57,7 @@ import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.TextAlignment
 import com.kelly.reader.ui.components.AppIcons
 import com.kelly.reader.ui.theme.FIGTREE
 import com.kelly.reader.ui.theme.KellyReaderTheme
@@ -87,16 +88,21 @@ data class PageKey(
 }
 
 /**
- * The text style for the page at the given [settings]: the chosen family, size and line height.
- * Lines are justified, which spreads the words of scripts that use spaces to both margins and
- * leaves scripts without spaces, such as Chinese, as they are.
+ * The text style for the page at the given [settings]: the chosen family, size, line height
+ * and alignment. Justify spreads the words of scripts that use spaces to both margins and
+ * leaves scripts without spaces, such as Chinese, as they are. Alignment never moves a line
+ * break, so the pages stay the same.
  */
 fun pageTextStyle(settings: ReaderSettings): TextStyle = TextStyle(
     fontFamily = if (settings.font == ReaderFont.SERIF) LITERATA else FIGTREE,
     fontSize = settings.fontSize.sp,
     lineHeight = (settings.fontSize * settings.lineSpacing.multiplier).sp,
     textDirection = TextDirection.Content,
-    textAlign = TextAlign.Justify,
+    textAlign = when (settings.textAlignment) {
+        TextAlignment.LEFT -> TextAlign.Left
+        TextAlignment.JUSTIFY -> TextAlign.Justify
+        TextAlignment.RIGHT -> TextAlign.Right
+    },
 )
 
 /**

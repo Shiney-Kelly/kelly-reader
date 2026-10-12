@@ -54,6 +54,23 @@ enum class ReadingMode(val key: String) {
 }
 
 /**
+ * How lines sit between the margins. [key] is what the settings store.
+ */
+enum class TextAlignment(val key: String) {
+    LEFT("left"),
+    JUSTIFY("justify"),
+    RIGHT("right");
+
+    companion object {
+
+        /**
+         * Returns the alignment stored under [key], or the default for an unknown key.
+         */
+        fun fromKey(key: String?): TextAlignment = entries.firstOrNull { it.key == key } ?: JUSTIFY
+    }
+}
+
+/**
  * Everything the settings drawer controls. [themeKey] is null until the user picks a reader
  * theme, which means follow the system.
  */
@@ -63,11 +80,12 @@ data class ReaderSettings(
     val font: ReaderFont = ReaderFont.SERIF,
     val themeKey: String? = null,
     val readingMode: ReadingMode = ReadingMode.PAGED,
+    val textAlignment: TextAlignment = TextAlignment.JUSTIFY,
 ) {
 
     companion object {
         const val MIN_FONT_SIZE = 14
         const val MAX_FONT_SIZE = 30
-        const val DEFAULT_FONT_SIZE = 19
+        const val DEFAULT_FONT_SIZE = 20
     }
 }

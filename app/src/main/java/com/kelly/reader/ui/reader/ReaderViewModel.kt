@@ -19,6 +19,7 @@ import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.TextAlignment
 
 /**
  * Loads the book, paginates it for the measurer the screen hands over, moves between pages
@@ -180,5 +181,9 @@ class ReaderViewModel(
 
     fun setReadingMode(mode: ReadingMode) {
         viewModelScope.launch { settingsRepository.setReadingMode(mode) }
+    }
+
+    fun setTextAlignment(alignment: TextAlignment) {
+        viewModelScope.launch { settingsRepository.setTextAlignment(alignment) }
     }
 }
