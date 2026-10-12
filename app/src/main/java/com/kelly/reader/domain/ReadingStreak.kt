@@ -13,11 +13,14 @@ data class ReadingStreak(
 
     /**
      * The streak after a book is opened on [today]: unchanged on the same day, one longer the
-     * day after, and back to one after a missed day or a clock that went backwards.
+     * day after, and back to one after a missed day. A date earlier than [lastDay], as after
+     * flying west or setting an earlier timezone, also leaves it unchanged rather than costing
+     * the streak.
      */
-    fun recordedOn(today: LocalDate): ReadingStreak = when (lastDay) {
-        today -> this
-        today.minusDays(1) -> ReadingStreak(days + 1, today)
+    fun recordedOn(today: LocalDate): ReadingStreak = when {
+        lastDay == null -> ReadingStreak(1, today)
+        !today.isAfter(lastDay) -> this
+        today == lastDay.plusDays(1) -> ReadingStreak(days + 1, today)
         else -> ReadingStreak(1, today)
     }
 

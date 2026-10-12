@@ -34,8 +34,22 @@ class ReadingStreakTest {
     }
 
     @Test
-    fun recordedOn_clockWentBack_restartsAtOne() {
-        assertEquals(ReadingStreak(1, day), ReadingStreak(3, day.plusDays(1)).recordedOn(day))
+    fun recordedOn_earlierDate_keepsStreak() {
+        val streak = ReadingStreak(40, day.plusDays(1))
+        assertEquals(streak, streak.recordedOn(day))
+    }
+
+    @Test
+    fun recordedOn_flyingWest_losesNothing() {
+        // read in Tokyo on Tue 13, land in Honolulu on Mon 12, then read Mon, Tue, Wed there
+        val tue = LocalDate.of(2026, 10, 13)
+        var streak = ReadingStreak(40, tue)
+        streak = streak.recordedOn(tue.minusDays(1))
+        assertEquals(ReadingStreak(40, tue), streak)
+        streak = streak.recordedOn(tue)
+        assertEquals(ReadingStreak(40, tue), streak)
+        streak = streak.recordedOn(tue.plusDays(1))
+        assertEquals(ReadingStreak(41, tue.plusDays(1)), streak)
     }
 
     @Test
