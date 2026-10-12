@@ -11,10 +11,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import java.time.Clock
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 import com.kelly.reader.data.FakeBookRepository
 import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
+import com.kelly.reader.domain.ReadingStreak
 
 /**
  * Checks the launch rule: reader for a recent book that still exists, shelf otherwise.
@@ -23,6 +27,9 @@ import com.kelly.reader.domain.Book
 class AppViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
+    private val today = LocalDate.of(2026, 10, 12)
+    private val clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
+    private val book = Book("b1", "Harbor", "b1.txt", 10, 10, 0)
 
     @Before
     fun setMainDispatcher() {
@@ -51,6 +58,53 @@ class AppViewModelTest {
         )
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals("reader/b1", viewModel.startRoute.value)
+    }
+
+    @Test
+    fun startInReader_countsTodayAsReadingDay() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(recentBookId = "b1")
+        AppViewModel(settings, FakeBookRepository(listOf(book)), clock)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ReadingStreak(1, today), settings.streak.value)
+    }
+
+    @Test
+    fun startOnShelf_doesNotCountTheDay() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository()
+        AppViewModel(settings, FakeBookRepository(), clock)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ReadingStreak(), settings.streak.value)
+    }
+
+    @Test
+    fun streakMilestone_seventhDayInReader_isSeven() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(
+            recentBookId = "b1",
+            streak = ReadingStreak(6, today.minusDays(1)),
+        )
+        val viewModel = AppViewModel(settings, FakeBookRepository(listOf(book)), clock)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(7, viewModel.streakMilestone.value)
+    }
+
+    @Test
+    fun streakMilestone_laterLaunchSameDay_staysSeven() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(streak = ReadingStreak(7, today))
+        val viewModel = AppViewModel(settings, FakeBookRepository(), clock)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(7, viewModel.streakMilestone.value)
+    }
+
+    @Test
+    fun streakMilestone_dayAfter_isNull() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(
+            recentBookId = "b1",
+            streak = ReadingStreak(7, today.minusDays(1)),
+        )
+        val viewModel = AppViewModel(settings, FakeBookRepository(listOf(book)), clock)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ReadingStreak(8, today), settings.streak.value)
+        assertNull(viewModel.streakMilestone.value)
     }
 
     @Test
