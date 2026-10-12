@@ -4,6 +4,8 @@ import android.content.res.Configuration
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,13 +43,21 @@ private val ICON_SHAPE = RoundedCornerShape(percent = 22)
 private const val ICON_IN_MS = 350
 private const val NAME_DELAY_MS = 400L
 private const val NAME_IN_MS = 400
+private const val FLIP_MS = 500
+private const val HALF_FLIP_DEGREES = 90f
 
 /**
  * The app's own splash: the icon in its original rounded square scales in, then the app name
- * fades in under it. How long it stays is up to the caller.
+ * fades in under it. Tapping the icon calls [onIconTap]; once [secretShown] is true the icon
+ * flips over like a page to show the second artwork and a caption. How long the splash stays
+ * is up to the caller.
  */
 @Composable
-fun SplashScreen(modifier: Modifier = Modifier) {
+fun SplashScreen(
+    secretShown: Boolean,
+    onIconTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var iconShown by remember { mutableStateOf(false) }
     var nameShown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -69,6 +80,14 @@ fun SplashScreen(modifier: Modifier = Modifier) {
         animationSpec = tween(NAME_IN_MS),
         label = "splash name alpha",
     )
+    // 0 is the front, 180 the back; the artwork swaps at the halfway point so the back reads
+    // the right way round
+    val flip by animateFloatAsState(
+        targetValue = if (secretShown) 180f else 0f,
+        animationSpec = tween(FLIP_MS),
+        label = "splash icon flip",
+    )
+    val showingBack = flip > HALF_FLIP_DEGREES
 
     Box(
         modifier = modifier
@@ -80,13 +99,24 @@ fun SplashScreen(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Image(
-                painter = painterResource(R.drawable.splash_icon),
+                painter = painterResource(
+                    if (showingBack) R.drawable.splash_icon_secret else R.drawable.splash_icon,
+                ),
                 contentDescription = null,
                 modifier = Modifier
                     .size(ICON_SIZE)
                     .scale(iconScale)
                     .alpha(iconAlpha)
-                    .clip(ICON_SHAPE),
+                    .graphicsLayer {
+                        rotationY = if (showingBack) flip - 180f else flip
+                        cameraDistance = 12f * density
+                    }
+                    .clip(ICON_SHAPE)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onIconTap,
+                    ),
             )
             Text(
                 text = stringResource(R.string.app_name),
@@ -96,6 +126,13 @@ fun SplashScreen(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.alpha(nameAlpha),
             )
+            Text(
+                text = stringResource(R.string.splash_secret),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.alpha(if (showingBack) 1f else 0f),
+            )
         }
     }
 }
@@ -104,7 +141,7 @@ fun SplashScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun SplashScreenPreview() {
     KellyReaderTheme {
-        SplashScreen()
+        SplashScreen(secretShown = false, onIconTap = {})
     }
 }
 
@@ -112,6 +149,14 @@ private fun SplashScreenPreview() {
 @Composable
 private fun SplashScreenDarkPreview() {
     KellyReaderTheme {
-        SplashScreen()
+        SplashScreen(secretShown = false, onIconTap = {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun SplashScreenSecretPreview() {
+    KellyReaderTheme {
+        SplashScreen(secretShown = true, onIconTap = {})
     }
 }
