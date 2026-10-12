@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,6 +51,9 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!splashElapsed) {
+            // count from the first drawn frame, not from composition: on a slow start the
+            // system splash covers the app for a while and the timer must not run under it
+            withFrameNanos { }
             delay(SPLASH_MIN_MS)
             splashElapsed = true
         }
