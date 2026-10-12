@@ -68,6 +68,6 @@ data class ReaderSettings(
     companion object {
         const val MIN_FONT_SIZE = 14
         const val MAX_FONT_SIZE = 30
-        const val DEFAULT_FONT_SIZE = 19
+        const val DEFAULT_FONT_SIZE = 20
     }
 }

@@ -32,7 +32,7 @@ class ReaderSettingsTest {
     @Test
     fun readerSettings_defaults_matchDesign() {
         val settings = ReaderSettings()
-        assertEquals(19, settings.fontSize)
+        assertEquals(20, settings.fontSize)
         assertEquals(LineSpacing.NORMAL, settings.lineSpacing)
         assertEquals(ReaderFont.SERIF, settings.font)
         assertEquals(null, settings.themeKey)

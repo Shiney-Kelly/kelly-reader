@@ -182,7 +182,7 @@ class ReaderViewModelTest {
         viewModel.setThemeKey("paper")
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value.settings
-        assertEquals(20, state.fontSize)
+        assertEquals(21, state.fontSize)
         assertEquals(LineSpacing.LOOSE, state.lineSpacing)
         assertEquals("paper", state.themeKey)
 
