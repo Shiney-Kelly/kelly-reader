@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 import com.kelly.reader.R
+import com.kelly.reader.ui.theme.AppTheme
 import com.kelly.reader.ui.theme.KellyReaderTheme
 
 // the launcher art is a rounded square, about the corner radius android uses for app icons
@@ -49,12 +50,14 @@ private const val HALF_FLIP_DEGREES = 90f
 /**
  * The app's own splash: the icon in its original rounded square scales in, then the app name
  * fades in under it. Tapping the icon calls [onIconTap]; once [secretShown] is true the icon
- * flips over like a page to show the second artwork and a caption. How long the splash stays
- * is up to the caller.
+ * flips over like a page to show the second artwork and a caption. On a day the reading streak
+ * hits [streakMilestone] days, a line about it fades in on its own row under the caption. How
+ * long the splash stays is up to the caller.
  */
 @Composable
 fun SplashScreen(
     secretShown: Boolean,
+    streakMilestone: Int?,
     onIconTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -88,6 +91,12 @@ fun SplashScreen(
         label = "splash icon flip",
     )
     val showingBack = flip > HALF_FLIP_DEGREES
+    val streakLine = streakMilestone?.let { streakLineRes(it) }
+    val streakAlpha by animateFloatAsState(
+        targetValue = if (streakLine != null && nameShown) 1f else 0f,
+        animationSpec = tween(NAME_IN_MS),
+        label = "splash streak alpha",
+    )
 
     Box(
         modifier = modifier
@@ -126,22 +135,46 @@ fun SplashScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.alpha(nameAlpha),
             )
-            Text(
-                text = stringResource(R.string.splash_secret),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.alpha(if (showingBack) 1f else 0f),
-            )
+            // both lines always take their space, so nothing moves when one of them appears
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.splash_secret),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.alpha(if (showingBack) 1f else 0f),
+                )
+                Text(
+                    text = streakLine?.let { stringResource(it) } ?: "",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppTheme.colors.accentText,
+                    modifier = Modifier.alpha(streakAlpha),
+                )
+            }
         }
     }
+}
+
+/**
+ * The line for a streak of [days], or null when [days] is not a milestone.
+ */
+private fun streakLineRes(days: Int): Int? = when (days) {
+    7 -> R.string.splash_streak_7
+    30 -> R.string.splash_streak_30
+    100 -> R.string.splash_streak_100
+    365 -> R.string.splash_streak_365
+    else -> null
 }
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun SplashScreenPreview() {
     KellyReaderTheme {
-        SplashScreen(secretShown = false, onIconTap = {})
+        SplashScreen(secretShown = false, streakMilestone = null, onIconTap = {})
     }
 }
 
@@ -149,7 +182,7 @@ private fun SplashScreenPreview() {
 @Composable
 private fun SplashScreenDarkPreview() {
     KellyReaderTheme {
-        SplashScreen(secretShown = false, onIconTap = {})
+        SplashScreen(secretShown = false, streakMilestone = null, onIconTap = {})
     }
 }
 
@@ -157,6 +190,14 @@ private fun SplashScreenDarkPreview() {
 @Composable
 private fun SplashScreenSecretPreview() {
     KellyReaderTheme {
-        SplashScreen(secretShown = true, onIconTap = {})
+        SplashScreen(secretShown = true, streakMilestone = 7, onIconTap = {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun SplashScreenStreakPreview() {
+    KellyReaderTheme {
+        SplashScreen(secretShown = false, streakMilestone = 30, onIconTap = {})
     }
 }

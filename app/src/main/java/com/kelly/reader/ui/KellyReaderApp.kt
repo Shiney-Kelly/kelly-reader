@@ -39,6 +39,8 @@ private const val TAP_HOLD_MS = 1_200L
 // taps needed for the secret, and how long it stays once found
 private const val SECRET_TAPS = 7
 private const val SECRET_HOLD_MS = 3_000L
+// how long the splash stays at least once a streak milestone line shows
+private const val STREAK_HOLD_MS = 2_500L
 
 /**
  * The whole app below the theme. Shows the splash until it has run its course and the start
@@ -54,6 +56,7 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
         },
     )
     val startRoute by appViewModel.startRoute.collectAsStateWithLifecycle()
+    val streakMilestone by appViewModel.streakMilestone.collectAsStateWithLifecycle()
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
     // taps on the splash icon push the end of the splash back, and enough of them show the
     // secret; both live only for this start
@@ -65,13 +68,20 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
             // count from the first drawn frame, not from composition: on a slow start the
             // system splash covers the app for a while and the timer must not run under it
             withFrameNanos { }
-            holdUntil = System.currentTimeMillis() + SPLASH_MIN_MS
+            holdUntil = maxOf(holdUntil, System.currentTimeMillis() + SPLASH_MIN_MS)
             while (true) {
                 val remaining = holdUntil - System.currentTimeMillis()
                 if (remaining <= 0) break
                 delay(remaining)
             }
             splashElapsed = true
+        }
+    }
+
+    // a milestone line needs a moment to be read, so it keeps the splash up a little longer
+    LaunchedEffect(streakMilestone) {
+        if (streakMilestone != null && !splashElapsed) {
+            holdUntil = maxOf(holdUntil, System.currentTimeMillis() + STREAK_HOLD_MS)
         }
     }
 
@@ -84,6 +94,7 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
             if (target == null) {
                 SplashScreen(
                     secretShown = secretShown,
+                    streakMilestone = streakMilestone,
                     onIconTap = {
                         iconTaps++
                         val hold = if (iconTaps >= SECRET_TAPS) SECRET_HOLD_MS else TAP_HOLD_MS
