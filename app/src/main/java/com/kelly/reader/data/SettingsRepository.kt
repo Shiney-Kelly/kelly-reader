@@ -4,18 +4,22 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
 
 /**
- * The recent book and the reading settings. An interface so tests can use a fake.
+ * The recent book, the reading settings and the reading streak. An interface so tests can use
+ * a fake.
  */
 interface SettingsRepository {
 
@@ -51,6 +55,16 @@ interface SettingsRepository {
     suspend fun setReadingMode(mode: ReadingMode)
 
     suspend fun setTextAlignment(alignment: TextAlignment)
+
+    /**
+     * The days in a row a book has been opened.
+     */
+    val readingStreak: Flow<ReadingStreak>
+
+    /**
+     * Counts [today] as a reading day. Calling it again on the same day changes nothing.
+     */
+    suspend fun recordReadingDay(today: LocalDate)
 }
 
 /**
@@ -104,6 +118,22 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[TEXT_ALIGNMENT] = alignment.key }
     }
 
+    override val readingStreak: Flow<ReadingStreak> = dataStore.data.map { prefs -> prefs.streak() }
+
+    // read and write in one edit, so two book opens at once cannot both count from the old value
+    override suspend fun recordReadingDay(today: LocalDate) {
+        dataStore.edit { prefs ->
+            val next = prefs.streak().recordedOn(today)
+            prefs[STREAK_DAYS] = next.days
+            next.lastDay?.let { prefs[STREAK_LAST_DAY] = it.toEpochDay() }
+        }
+    }
+
+    private fun Preferences.streak(): ReadingStreak = ReadingStreak(
+        days = this[STREAK_DAYS] ?: 0,
+        lastDay = this[STREAK_LAST_DAY]?.let(LocalDate::ofEpochDay),
+    )
+
     private companion object {
         val RECENT_BOOK_ID = stringPreferencesKey("recent_book_id")
         val FONT_SIZE = intPreferencesKey("font_size")
@@ -112,5 +142,8 @@ class DataStoreSettingsRepository(
         val THEME = stringPreferencesKey("reader_theme")
         val READING_MODE = stringPreferencesKey("reading_mode")
         val TEXT_ALIGNMENT = stringPreferencesKey("text_alignment")
+        val STREAK_DAYS = intPreferencesKey("streak_days")
+        // the last reading day as days since 1970-01-01, which is what LocalDate keeps inside
+        val STREAK_LAST_DAY = longPreferencesKey("streak_last_day")
     }
 }
