@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,12 +87,15 @@ data class PageKey(
 
 /**
  * The text style for the page at the given [settings]: the chosen family, size and line height.
+ * Lines are justified, which spreads the words of scripts that use spaces to both margins and
+ * leaves scripts without spaces, such as Chinese, as they are.
  */
 fun pageTextStyle(settings: ReaderSettings): TextStyle = TextStyle(
     fontFamily = if (settings.font == ReaderFont.SERIF) LITERATA else FIGTREE,
     fontSize = settings.fontSize.sp,
     lineHeight = (settings.fontSize * settings.lineSpacing.multiplier).sp,
     textDirection = TextDirection.Content,
+    textAlign = TextAlign.Justify,
 )
 
 /**
