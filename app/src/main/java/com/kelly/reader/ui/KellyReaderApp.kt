@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -33,6 +34,11 @@ import com.kelly.reader.ui.splash.SplashScreen
 
 // how long the splash stays at least, so the icon and the name get their moment
 private const val SPLASH_MIN_MS = 1_500L
+// each tap on the icon keeps the splash around this much longer, so the taps are not a race
+private const val TAP_HOLD_MS = 1_200L
+// taps needed for the secret, and how long it stays once found
+private const val SECRET_TAPS = 7
+private const val SECRET_HOLD_MS = 3_000L
 
 /**
  * The whole app below the theme. Shows the splash until it has run its course and the start
@@ -49,12 +55,22 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
     )
     val startRoute by appViewModel.startRoute.collectAsStateWithLifecycle()
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
+    // taps on the splash icon push the end of the splash back, and enough of them show the
+    // secret; both live only for this start
+    var iconTaps by rememberSaveable { mutableStateOf(0) }
+    var holdUntil by remember { mutableStateOf(0L) }
+    val secretShown = iconTaps >= SECRET_TAPS
     LaunchedEffect(Unit) {
         if (!splashElapsed) {
             // count from the first drawn frame, not from composition: on a slow start the
             // system splash covers the app for a while and the timer must not run under it
             withFrameNanos { }
-            delay(SPLASH_MIN_MS)
+            holdUntil = System.currentTimeMillis() + SPLASH_MIN_MS
+            while (true) {
+                val remaining = holdUntil - System.currentTimeMillis()
+                if (remaining <= 0) break
+                delay(remaining)
+            }
             splashElapsed = true
         }
     }
@@ -66,7 +82,14 @@ fun KellyReaderApp(modifier: Modifier = Modifier) {
         val route = startRoute
         Crossfade(targetState = if (splashElapsed) route else null, label = "splash") { target ->
             if (target == null) {
-                SplashScreen()
+                SplashScreen(
+                    secretShown = secretShown,
+                    onIconTap = {
+                        iconTaps++
+                        val hold = if (iconTaps >= SECRET_TAPS) SECRET_HOLD_MS else TAP_HOLD_MS
+                        holdUntil = maxOf(holdUntil, System.currentTimeMillis() + hold)
+                    },
+                )
             } else {
                 AppNavHost(navController = rememberNavController(), startRoute = target)
             }
