@@ -51,8 +51,8 @@ private const val HALF_FLIP_DEGREES = 90f
  * The app's own splash: the icon in its original rounded square scales in, then the app name
  * fades in under it. Tapping the icon calls [onIconTap]; once [secretShown] is true the icon
  * flips over like a page to show the second artwork and a caption. On a day the reading streak
- * hits [streakMilestone] days, a line about it fades in on its own row under the caption. How
- * long the splash stays is up to the caller.
+ * hits [streakMilestone] days, a line about it fades in right under the name, and the caption
+ * takes the row below it. How long the splash stays is up to the caller.
  */
 @Composable
 fun SplashScreen(
@@ -135,28 +135,44 @@ fun SplashScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.alpha(nameAlpha),
             )
-            // both lines always take their space, so nothing moves when one of them appears
+            // two rows always take their space, so nothing moves when a line appears: the streak
+            // line, when there is one, sits right under the name and the secret caption below it
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.splash_secret),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.alpha(if (showingBack) 1f else 0f),
-                )
-                Text(
-                    text = streakLine?.let { stringResource(it) } ?: "",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AppTheme.colors.accentText,
-                    modifier = Modifier.alpha(streakAlpha),
-                )
+                if (streakLine != null) {
+                    StreakLine(text = stringResource(streakLine), alpha = streakAlpha)
+                    SecretCaption(shown = showingBack)
+                } else {
+                    SecretCaption(shown = showingBack)
+                    StreakLine(text = "", alpha = 0f)
+                }
             }
         }
     }
+}
+
+@Composable
+private fun SecretCaption(shown: Boolean) {
+    Text(
+        text = stringResource(R.string.splash_secret),
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.alpha(if (shown) 1f else 0f),
+    )
+}
+
+@Composable
+private fun StreakLine(text: String, alpha: Float) {
+    Text(
+        text = text,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = AppTheme.colors.accentText,
+        modifier = Modifier.alpha(alpha),
+    )
 }
 
 /**
