@@ -72,7 +72,8 @@ class ReaderViewModelTest {
     @Test
     fun init_countsTodayAsReadingDay() = runTest(dispatcher) {
         viewModel()
-        assertEquals(ReadingStreak(1, today), settings.streak.value)
+        assertEquals(1, settings.streak.value.days)
+        assertEquals(today, settings.streak.value.lastDay)
     }
 
     @Test

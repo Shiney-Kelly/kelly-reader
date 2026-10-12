@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.LocalDate
+import java.time.ZonedDateTime
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.SettingsRepository
@@ -24,7 +25,7 @@ import com.kelly.reader.data.SettingsRepository
 class AppViewModel(
     private val settingsRepository: SettingsRepository,
     private val bookRepository: BookRepository,
-    clock: Clock = Clock.systemDefaultZone(),
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
     private val today: LocalDate = LocalDate.now(clock)
@@ -48,7 +49,7 @@ class AppViewModel(
             val recentId = settingsRepository.recentBookId.first()
             val book = recentId?.let { bookRepository.getBook(it) }
             _startRoute.value = if (book != null) Routes.reader(book.id) else Routes.SHELF
-            if (book != null) settingsRepository.recordReadingDay(today)
+            if (book != null) settingsRepository.recordReadingDay(ZonedDateTime.now(clock))
         }
     }
 }

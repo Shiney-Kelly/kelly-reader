@@ -65,7 +65,8 @@ class AppViewModelTest {
         val settings = FakeSettingsRepository(recentBookId = "b1")
         AppViewModel(settings, FakeBookRepository(listOf(book)), clock)
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(ReadingStreak(1, today), settings.streak.value)
+        assertEquals(1, settings.streak.value.days)
+        assertEquals(today, settings.streak.value.lastDay)
     }
 
     @Test
@@ -103,7 +104,8 @@ class AppViewModelTest {
         )
         val viewModel = AppViewModel(settings, FakeBookRepository(listOf(book)), clock)
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(ReadingStreak(8, today), settings.streak.value)
+        assertEquals(8, settings.streak.value.days)
+        assertEquals(today, settings.streak.value.lastDay)
         assertNull(viewModel.streakMilestone.value)
     }
 

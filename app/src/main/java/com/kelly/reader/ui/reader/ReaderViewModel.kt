@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Clock
-import java.time.LocalDate
+import java.time.ZonedDateTime
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.PageCache
@@ -57,7 +57,7 @@ class ReaderViewModel(
                 )
             }
             settingsRepository.setRecentBookId(bookId)
-            settingsRepository.recordReadingDay(LocalDate.now(clock))
+            settingsRepository.recordReadingDay(ZonedDateTime.now(clock))
             paginate()
         }
         viewModelScope.launch {

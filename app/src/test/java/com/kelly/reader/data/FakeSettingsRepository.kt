@@ -3,7 +3,7 @@ package com.kelly.reader.data
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import java.time.LocalDate
+import java.time.ZonedDateTime
 
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
@@ -60,7 +60,7 @@ class FakeSettingsRepository(
 
     override val readingStreak: Flow<ReadingStreak> = this.streak
 
-    override suspend fun recordReadingDay(today: LocalDate) {
-        streak.update { it.recordedOn(today) }
+    override suspend fun recordReadingDay(now: ZonedDateTime) {
+        streak.update { it.recordedOn(now) }
     }
 }

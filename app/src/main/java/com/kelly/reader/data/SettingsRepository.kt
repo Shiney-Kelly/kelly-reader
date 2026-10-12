@@ -8,7 +8,10 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
@@ -62,9 +65,10 @@ interface SettingsRepository {
     val readingStreak: Flow<ReadingStreak>
 
     /**
-     * Counts [today] as a reading day. Calling it again on the same day changes nothing.
+     * Counts a book opened at [now] toward the streak. More opens on the same day change only
+     * the stored time and timezone.
      */
-    suspend fun recordReadingDay(today: LocalDate)
+    suspend fun recordReadingDay(now: ZonedDateTime)
 }
 
 /**
@@ -121,17 +125,22 @@ class DataStoreSettingsRepository(
     override val readingStreak: Flow<ReadingStreak> = dataStore.data.map { prefs -> prefs.streak() }
 
     // read and write in one edit, so two book opens at once cannot both count from the old value
-    override suspend fun recordReadingDay(today: LocalDate) {
+    override suspend fun recordReadingDay(now: ZonedDateTime) {
         dataStore.edit { prefs ->
-            val next = prefs.streak().recordedOn(today)
+            val next = prefs.streak().recordedOn(now)
             prefs[STREAK_DAYS] = next.days
             next.lastDay?.let { prefs[STREAK_LAST_DAY] = it.toEpochDay() }
+            next.lastReadAt?.let { prefs[STREAK_LAST_READ_AT] = it.toEpochMilli() }
+            next.lastZone?.let { prefs[STREAK_LAST_ZONE] = it.id }
         }
     }
 
     private fun Preferences.streak(): ReadingStreak = ReadingStreak(
         days = this[STREAK_DAYS] ?: 0,
         lastDay = this[STREAK_LAST_DAY]?.let(LocalDate::ofEpochDay),
+        lastReadAt = this[STREAK_LAST_READ_AT]?.let(Instant::ofEpochMilli),
+        // a zone id this phone's timezone database does not know just means no grace
+        lastZone = this[STREAK_LAST_ZONE]?.let { id -> runCatching { ZoneId.of(id) }.getOrNull() },
     )
 
     private companion object {
@@ -145,5 +154,7 @@ class DataStoreSettingsRepository(
         val STREAK_DAYS = intPreferencesKey("streak_days")
         // the last reading day as days since 1970-01-01, which is what LocalDate keeps inside
         val STREAK_LAST_DAY = longPreferencesKey("streak_last_day")
+        val STREAK_LAST_READ_AT = longPreferencesKey("streak_last_read_at")
+        val STREAK_LAST_ZONE = stringPreferencesKey("streak_last_zone")
     }
 }
