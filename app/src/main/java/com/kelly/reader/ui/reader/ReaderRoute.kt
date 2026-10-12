@@ -62,6 +62,7 @@ fun ReaderRoute(
             onFont = viewModel::setFont,
             onTheme = { viewModel.setThemeKey(it?.key) },
             onReadingMode = viewModel::setReadingMode,
+            onTextAlignment = viewModel::setTextAlignment,
         ),
         onSettingsClick = { drawerOpen = true },
         onCloseSettings = { drawerOpen = false },

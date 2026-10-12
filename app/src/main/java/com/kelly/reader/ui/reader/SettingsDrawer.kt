@@ -50,6 +50,7 @@ import com.kelly.reader.R
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.TextAlignment
 import com.kelly.reader.ui.components.AppIcons
 import com.kelly.reader.ui.components.ProgressBar
 import com.kelly.reader.ui.theme.AppTheme
@@ -74,10 +75,11 @@ data class SettingsActions(
     val onFont: (ReaderFont) -> Unit,
     val onTheme: (ReaderTheme?) -> Unit,
     val onReadingMode: (ReadingMode) -> Unit,
+    val onTextAlignment: (TextAlignment) -> Unit,
 ) {
 
     companion object {
-        val NONE = SettingsActions({}, {}, {}, {}, {}, {})
+        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -147,11 +149,28 @@ private fun DrawerPanel(
         BookCard(uiState = uiState)
         ReadingModeSection(selected = uiState.settings.readingMode, onPick = actions.onReadingMode)
         TextSizeSection(fontSize = uiState.settings.fontSize, actions = actions)
+        AlignmentSection(selected = uiState.settings.textAlignment, onPick = actions.onTextAlignment)
         LineSpacingSection(selected = uiState.settings.lineSpacing, onPick = actions.onLineSpacing)
         FontSection(selected = uiState.settings.font, onPick = actions.onFont)
         ThemeSection(selectedKey = uiState.settings.themeKey, onPick = actions.onTheme)
         Spacer(modifier = Modifier.weight(1f))
         BackToShelfButton(onClick = onBackToShelf)
+    }
+}
+
+@Composable
+private fun AlignmentSection(selected: TextAlignment, onPick: (TextAlignment) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_alignment)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextAlignment.entries.forEach { alignment ->
+                SegmentButton(
+                    label = stringResource(alignment.labelRes),
+                    selected = alignment == selected,
+                    onClick = { onPick(alignment) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
     }
 }
 
@@ -327,6 +346,13 @@ private val LineSpacing.labelRes: Int
         LineSpacing.COMPACT -> R.string.reader_spacing_compact
         LineSpacing.NORMAL -> R.string.reader_spacing_normal
         LineSpacing.LOOSE -> R.string.reader_spacing_loose
+    }
+
+private val TextAlignment.labelRes: Int
+    get() = when (this) {
+        TextAlignment.LEFT -> R.string.reader_align_left
+        TextAlignment.JUSTIFY -> R.string.reader_align_justify
+        TextAlignment.RIGHT -> R.string.reader_align_right
     }
 
 private val ReadingMode.labelRes: Int

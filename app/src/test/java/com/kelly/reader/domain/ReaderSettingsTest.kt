@@ -30,6 +30,13 @@ class ReaderSettingsTest {
     }
 
     @Test
+    fun textAlignment_fromKey_knownAndUnknown() {
+        assertEquals(TextAlignment.RIGHT, TextAlignment.fromKey("right"))
+        assertEquals(TextAlignment.JUSTIFY, TextAlignment.fromKey("center"))
+        assertEquals(TextAlignment.JUSTIFY, TextAlignment.fromKey(null))
+    }
+
+    @Test
     fun readerSettings_defaults_matchDesign() {
         val settings = ReaderSettings()
         assertEquals(20, settings.fontSize)
@@ -37,5 +44,6 @@ class ReaderSettingsTest {
         assertEquals(ReaderFont.SERIF, settings.font)
         assertEquals(null, settings.themeKey)
         assertEquals(ReadingMode.PAGED, settings.readingMode)
+        assertEquals(TextAlignment.JUSTIFY, settings.textAlignment)
     }
 }

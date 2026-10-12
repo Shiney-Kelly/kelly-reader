@@ -8,6 +8,7 @@ import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.TextAlignment
 
 /**
  * In-memory [SettingsRepository] for ViewModel tests.
@@ -47,5 +48,9 @@ class FakeSettingsRepository(
 
     override suspend fun setReadingMode(mode: ReadingMode) {
         settings.update { it.copy(readingMode = mode) }
+    }
+
+    override suspend fun setTextAlignment(alignment: TextAlignment) {
+        settings.update { it.copy(textAlignment = alignment) }
     }
 }

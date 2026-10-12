@@ -12,6 +12,7 @@ import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.TextAlignment
 
 /**
  * The recent book and the reading settings. An interface so tests can use a fake.
@@ -48,6 +49,8 @@ interface SettingsRepository {
     suspend fun setThemeKey(key: String?)
 
     suspend fun setReadingMode(mode: ReadingMode)
+
+    suspend fun setTextAlignment(alignment: TextAlignment)
 }
 
 /**
@@ -66,6 +69,7 @@ class DataStoreSettingsRepository(
             font = ReaderFont.fromKey(prefs[FONT]),
             themeKey = prefs[THEME],
             readingMode = ReadingMode.fromKey(prefs[READING_MODE]),
+            textAlignment = TextAlignment.fromKey(prefs[TEXT_ALIGNMENT]),
         )
     }
 
@@ -96,6 +100,10 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[READING_MODE] = mode.key }
     }
 
+    override suspend fun setTextAlignment(alignment: TextAlignment) {
+        dataStore.edit { prefs -> prefs[TEXT_ALIGNMENT] = alignment.key }
+    }
+
     private companion object {
         val RECENT_BOOK_ID = stringPreferencesKey("recent_book_id")
         val FONT_SIZE = intPreferencesKey("font_size")
@@ -103,5 +111,6 @@ class DataStoreSettingsRepository(
         val FONT = stringPreferencesKey("font")
         val THEME = stringPreferencesKey("reader_theme")
         val READING_MODE = stringPreferencesKey("reading_mode")
+        val TEXT_ALIGNMENT = stringPreferencesKey("text_alignment")
     }
 }
