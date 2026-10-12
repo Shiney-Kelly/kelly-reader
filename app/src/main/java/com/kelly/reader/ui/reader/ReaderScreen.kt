@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -272,7 +273,8 @@ private fun PageArea(
 
 /**
  * Paged mode: the current page. A tap on the left half goes back a page and on the right half
- * forward, by screen position whatever the text direction.
+ * forward, by screen position whatever the text direction. A long press starts a text
+ * selection with the system copy toolbar; while one is shown, a tap clears it instead.
  */
 @Composable
 private fun SinglePage(
@@ -289,7 +291,9 @@ private fun SinglePage(
             }
         },
     ) {
-        Text(text = text, style = style, overflow = TextOverflow.Clip)
+        SelectionContainer {
+            Text(text = text, style = style, overflow = TextOverflow.Clip)
+        }
     }
 }
 
@@ -320,13 +324,16 @@ private fun ScrollingPages(
             .distinctUntilChanged()
             .collect { index -> onScrolledToPage(index) }
     }
-    LazyColumn(state = listState, modifier = modifier) {
-        items(count = count, key = { starts[it] }) { index ->
-            Text(
-                text = Paginator.pageText(uiState.text, starts, index),
-                style = style,
-                modifier = Modifier.fillMaxWidth(),
-            )
+    // one selection container around the list, so a selection can run across page items
+    SelectionContainer {
+        LazyColumn(state = listState, modifier = modifier) {
+            items(count = count, key = { starts[it] }) { index ->
+                Text(
+                    text = Paginator.pageText(uiState.text, starts, index),
+                    style = style,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
