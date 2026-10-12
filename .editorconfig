@@ -1,4 +1,4 @@
-# editor settings that make android studio format code the way CLAUDE.md asks
+# editor settings that make android studio follow the project code rules
 root = true
 
 [*]
