@@ -81,7 +81,7 @@ fun ShelfScreen(
                 onDoneClick = onDoneClick,
                 onAddClick = onAddClick,
             )
-            val books = uiState.books
+            val books = uiState.shownBooks
             when {
                 books == null -> Unit
                 books.isEmpty() -> EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
