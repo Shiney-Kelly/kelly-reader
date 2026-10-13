@@ -86,6 +86,15 @@ val DARK_COVER_COLORS = listOf(
     Color(0xFF3B4834),
 )
 
+// ----- shelf pet ledge -----
+
+val LIGHT_LEDGE = Color(0xFFE3D7C4)
+val LIGHT_LEDGE_TOP = Color(0xFFEFE6D8)
+val LIGHT_LEDGE_SHADE = Color(0x2E786040)
+val DARK_LEDGE = Color(0xFF3A342E)
+val DARK_LEDGE_TOP = Color(0xFF4E453C)
+val DARK_LEDGE_SHADE = Color(0x40000000)
+
 // ----- reader themes -----
 
 val READER_LIGHT_BG = Color(0xFFFAF9F7)

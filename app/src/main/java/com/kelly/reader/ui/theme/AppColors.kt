@@ -10,7 +10,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
- * The handoff tokens that have no Material slot: tints, status colors, track and cover colors.
+ * The handoff tokens that have no Material slot: tints, status colors, track, cover colors and
+ * the ledge the shelf bear walks on.
  */
 @Immutable
 data class AppColors(
@@ -29,6 +30,9 @@ data class AppColors(
     val coverGlyph: Color,
     val coverMeta: Color,
     val coverColors: List<Color>,
+    val ledge: Color,
+    val ledgeTop: Color,
+    val ledgeShade: Color,
 )
 
 val LIGHT_APP_COLORS = AppColors(
@@ -47,6 +51,9 @@ val LIGHT_APP_COLORS = AppColors(
     coverGlyph = LIGHT_COVER_GLYPH,
     coverMeta = LIGHT_COVER_META,
     coverColors = LIGHT_COVER_COLORS,
+    ledge = LIGHT_LEDGE,
+    ledgeTop = LIGHT_LEDGE_TOP,
+    ledgeShade = LIGHT_LEDGE_SHADE,
 )
 
 val DARK_APP_COLORS = AppColors(
@@ -65,6 +72,9 @@ val DARK_APP_COLORS = AppColors(
     coverGlyph = DARK_COVER_GLYPH,
     coverMeta = DARK_COVER_META,
     coverColors = DARK_COVER_COLORS,
+    ledge = DARK_LEDGE,
+    ledgeTop = DARK_LEDGE_TOP,
+    ledgeShade = DARK_LEDGE_SHADE,
 )
 
 val LocalAppColors = staticCompositionLocalOf { LIGHT_APP_COLORS }
