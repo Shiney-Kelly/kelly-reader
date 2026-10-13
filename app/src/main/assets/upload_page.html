@@ -7,11 +7,11 @@
 <style>
   :root { --bg: #F4F3F0; --surface: #FFFFFF; --ink: #2E3035; --muted: #5F6368; --line: #E1E2E5;
           --tint: #ECEEF4; --tint-ink: #3E4A6E; --accent: #56699A; --ok-bg: #E4F2E8; --ok-ink: #1E6B3A;
-          --err-bg: #F6E9E7; --err-ink: #8C3F38; --track: #E1E3E7; }
+          --err-bg: #F6E9E7; --err-ink: #8C3F38; --track: #E1E3E7; --lilac: #A88BD6; }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #1C1D20; --surface: #26282C; --ink: #E3E1DC; --muted: #A3A6AB; --line: #3A3D42;
             --tint: #2E3340; --tint-ink: #C3CCE6; --ok-bg: #22362A; --ok-ink: #8FCCA2;
-            --err-bg: #3D2826; --err-ink: #E3A39B; --track: #3A3D42; }
+            --err-bg: #3D2826; --err-ink: #E3A39B; --track: #3A3D42; --lilac: #C3B1E8; }
   }
   body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--ink); }
   main { max-width: 560px; margin: 0 auto; padding: 32px 20px 48px; }
@@ -20,6 +20,7 @@
   #drop { display: block; box-sizing: border-box; border: 2px dashed var(--line); border-radius: 18px;
           background: var(--surface); padding: 40px 20px; text-align: center; cursor: pointer;
           transition: border-color .15s; }
+  #drop.meow { border-color: var(--lilac); }
   #drop.over { border-color: var(--accent); }
   #drop strong { display: block; font-size: 17px; margin-bottom: 6px; }
   #drop span { color: var(--muted); font-size: 14px; }
@@ -117,6 +118,17 @@
     e.preventDefault();
     drop.classList.remove('over');
     enqueue(e.dataTransfer.files);
+  });
+
+  // typing "meow" in lower case anywhere on the page wakes the cat
+  let typed = '';
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+    typed = (typed + e.key).slice(-4);
+    if (typed !== 'meow') return;
+    drop.classList.add('meow');
+    drop.querySelector('strong').textContent =
+      "Prrrr-meow? Just drop the .txt files here... I'll look at them after my nap~";
   });
 </script>
 </body>
