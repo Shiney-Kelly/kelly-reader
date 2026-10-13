@@ -1,6 +1,10 @@
 <resources>
     <string name="app_name">Kelly Reader</string>
     <string name="splash_secret">Chapter 7 · You Found Us</string>
+    <string name="splash_streak_7">A week of pages. The bear is proud.</string>
+    <string name="splash_streak_30">A month of pages. The cat approves.</string>
+    <string name="splash_streak_100">A hundred days of reading. The cat is impressed.</string>
+    <string name="splash_streak_365">A whole year of pages. They are both cheering.</string>
 
     <string name="shelf_title">Bookshelf</string>
     <string name="shelf_select_books">Select books</string>

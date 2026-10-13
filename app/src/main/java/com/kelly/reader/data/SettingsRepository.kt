@@ -4,18 +4,25 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
 
 /**
- * The recent book and the reading settings. An interface so tests can use a fake.
+ * The recent book, the reading settings and the reading streak. An interface so tests can use
+ * a fake.
  */
 interface SettingsRepository {
 
@@ -51,6 +58,17 @@ interface SettingsRepository {
     suspend fun setReadingMode(mode: ReadingMode)
 
     suspend fun setTextAlignment(alignment: TextAlignment)
+
+    /**
+     * The days in a row a book has been opened.
+     */
+    val readingStreak: Flow<ReadingStreak>
+
+    /**
+     * Counts a book opened at [now] toward the streak. More opens on the same day change only
+     * the stored time and timezone.
+     */
+    suspend fun recordReadingDay(now: ZonedDateTime)
 }
 
 /**
@@ -104,6 +122,27 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[TEXT_ALIGNMENT] = alignment.key }
     }
 
+    override val readingStreak: Flow<ReadingStreak> = dataStore.data.map { prefs -> prefs.streak() }
+
+    // read and write in one edit, so two book opens at once cannot both count from the old value
+    override suspend fun recordReadingDay(now: ZonedDateTime) {
+        dataStore.edit { prefs ->
+            val next = prefs.streak().recordedOn(now)
+            prefs[STREAK_DAYS] = next.days
+            next.lastDay?.let { prefs[STREAK_LAST_DAY] = it.toEpochDay() }
+            next.lastReadAt?.let { prefs[STREAK_LAST_READ_AT] = it.toEpochMilli() }
+            next.lastZone?.let { prefs[STREAK_LAST_ZONE] = it.id }
+        }
+    }
+
+    private fun Preferences.streak(): ReadingStreak = ReadingStreak(
+        days = this[STREAK_DAYS] ?: 0,
+        lastDay = this[STREAK_LAST_DAY]?.let(LocalDate::ofEpochDay),
+        lastReadAt = this[STREAK_LAST_READ_AT]?.let(Instant::ofEpochMilli),
+        // a zone id this phone's timezone database does not know just means no grace
+        lastZone = this[STREAK_LAST_ZONE]?.let { id -> runCatching { ZoneId.of(id) }.getOrNull() },
+    )
+
     private companion object {
         val RECENT_BOOK_ID = stringPreferencesKey("recent_book_id")
         val FONT_SIZE = intPreferencesKey("font_size")
@@ -112,5 +151,10 @@ class DataStoreSettingsRepository(
         val THEME = stringPreferencesKey("reader_theme")
         val READING_MODE = stringPreferencesKey("reading_mode")
         val TEXT_ALIGNMENT = stringPreferencesKey("text_alignment")
+        val STREAK_DAYS = intPreferencesKey("streak_days")
+        // the last reading day as days since 1970-01-01, which is what LocalDate keeps inside
+        val STREAK_LAST_DAY = longPreferencesKey("streak_last_day")
+        val STREAK_LAST_READ_AT = longPreferencesKey("streak_last_read_at")
+        val STREAK_LAST_ZONE = stringPreferencesKey("streak_last_zone")
     }
 }

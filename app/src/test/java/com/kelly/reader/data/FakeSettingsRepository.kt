@@ -3,11 +3,13 @@ package com.kelly.reader.data
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import java.time.ZonedDateTime
 
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
 
 /**
@@ -16,10 +18,12 @@ import com.kelly.reader.domain.TextAlignment
 class FakeSettingsRepository(
     recentBookId: String? = null,
     settings: ReaderSettings = ReaderSettings(),
+    streak: ReadingStreak = ReadingStreak(),
 ) : SettingsRepository {
 
     val recent = MutableStateFlow(recentBookId)
     val settings = MutableStateFlow(settings)
+    val streak = MutableStateFlow(streak)
 
     override val recentBookId: Flow<String?> = recent
 
@@ -52,5 +56,11 @@ class FakeSettingsRepository(
 
     override suspend fun setTextAlignment(alignment: TextAlignment) {
         settings.update { it.copy(textAlignment = alignment) }
+    }
+
+    override val readingStreak: Flow<ReadingStreak> = this.streak
+
+    override suspend fun recordReadingDay(now: ZonedDateTime) {
+        streak.update { it.recordedOn(now) }
     }
 }

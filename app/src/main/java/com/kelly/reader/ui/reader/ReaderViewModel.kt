@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Clock
+import java.time.ZonedDateTime
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.PageCache
@@ -31,6 +33,7 @@ class ReaderViewModel(
     private val settingsRepository: SettingsRepository,
     private val pageCache: PageCache,
     private val paginationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState())
@@ -54,6 +57,7 @@ class ReaderViewModel(
                 )
             }
             settingsRepository.setRecentBookId(bookId)
+            settingsRepository.recordReadingDay(ZonedDateTime.now(clock))
             paginate()
         }
         viewModelScope.launch {

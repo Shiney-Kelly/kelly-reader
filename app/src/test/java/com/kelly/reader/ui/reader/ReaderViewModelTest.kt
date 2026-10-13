@@ -14,6 +14,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.nio.file.Files
+import java.time.Clock
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 import com.kelly.reader.data.FakeBookRepository
 import com.kelly.reader.data.PageCache
@@ -21,6 +24,7 @@ import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ReadingMode
+import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
 
 /**
@@ -36,6 +40,8 @@ class ReaderViewModelTest {
     private val settings = FakeSettingsRepository()
     private val cacheDir = Files.createTempDirectory("pages").toFile()
     private val pageCache = PageCache(cacheDir, dispatcher)
+    private val today = LocalDate.of(2026, 10, 12)
+    private val clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
     private fun fixed(perPage: Int) = PageMeasurer { t, start -> minOf(perPage, t.length - start) }
 
@@ -51,7 +57,7 @@ class ReaderViewModelTest {
     }
 
     private fun viewModel(bookId: String = "b1"): ReaderViewModel =
-        ReaderViewModel(bookId, repository, settings, pageCache, dispatcher).also {
+        ReaderViewModel(bookId, repository, settings, pageCache, dispatcher, clock).also {
             dispatcher.scheduler.advanceUntilIdle()
         }
 
@@ -61,6 +67,13 @@ class ReaderViewModelTest {
         assertEquals(book, viewModel.uiState.value.book)
         assertEquals(text, viewModel.uiState.value.text)
         assertEquals("b1", settings.recent.value)
+    }
+
+    @Test
+    fun init_countsTodayAsReadingDay() = runTest(dispatcher) {
+        viewModel()
+        assertEquals(1, settings.streak.value.days)
+        assertEquals(today, settings.streak.value.lastDay)
     }
 
     @Test
