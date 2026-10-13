@@ -12,7 +12,8 @@ import com.kelly.reader.di.appContainer
 
 /**
  * The bookshelf screen entry: builds the ViewModel and wires its state to [ShelfScreen].
- * A tap on a book opens it, or toggles its selection while editing.
+ * A tap on a book opens it, or toggles its selection while editing. A long shake mixes up the
+ * covers for a moment.
  */
 @Composable
 fun ShelfRoute(
@@ -30,6 +31,7 @@ fun ShelfRoute(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    ShakeEffect(onShake = viewModel::onShake)
     ShelfScreen(
         uiState = uiState,
         onBookClick = { id -> if (uiState.editing) viewModel.toggleSelected(id) else onOpenBook(id) },

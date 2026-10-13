@@ -1,6 +1,13 @@
 package com.kelly.reader.ui.shelf
 
 import android.content.res.Configuration
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,18 +30,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -44,8 +58,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.PI
+import kotlin.math.sin
+import kotlinx.coroutines.delay
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.Book
@@ -58,6 +76,30 @@ import com.kelly.reader.ui.components.PillButton
 import com.kelly.reader.ui.components.ProgressBar
 import com.kelly.reader.ui.theme.AppTheme
 import com.kelly.reader.ui.theme.KellyReaderTheme
+
+// ----- shake shuffle -----
+
+// the covers spin once and grow a little on the way to their mixed up places
+private const val TUMBLE_MS = 700
+private const val FULL_TURN = 360f
+private const val TUMBLE_LIFT = 0.08f
+
+// long enough for the covers to snap back before moves stop gliding
+private const val SETTLE_MS = 1_000L
+
+private val TUMBLE_SPRING = spring(
+    dampingRatio = 0.7f,
+    stiffness = Spring.StiffnessLow,
+    visibilityThreshold = IntOffset.VisibilityThreshold,
+)
+private val SNAP_BACK_SPRING = spring(
+    stiffness = Spring.StiffnessMedium,
+    visibilityThreshold = IntOffset.VisibilityThreshold,
+)
+
+// never null: a null spec removes the item animations, and new ones made in the middle of a
+// move draw nothing until the move ends
+private val NO_GLIDE = snap<IntOffset>()
 
 /**
  * The bookshelf: a title row with Edit and Add, a three column grid of covers, and the delete
@@ -81,7 +123,7 @@ fun ShelfScreen(
                 onDoneClick = onDoneClick,
                 onAddClick = onAddClick,
             )
-            val books = uiState.books
+            val books = uiState.shownBooks
             when {
                 books == null -> Unit
                 books.isEmpty() -> EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
@@ -89,6 +131,7 @@ fun ShelfScreen(
                     books = books,
                     editing = uiState.editing,
                     selected = uiState.selected,
+                    shuffling = uiState.shuffling,
                     onBookClick = onBookClick,
                     modifier = Modifier.weight(1f),
                 )
@@ -240,16 +283,46 @@ private fun ShelfTopBar(
     }
 }
 
+/**
+ * The covers in a three column grid. While [shuffling] the covers tumble to their mixed up
+ * places, and when it ends they snap back.
+ */
 @Composable
 private fun BookGrid(
     books: List<Book>,
     editing: Boolean,
     selected: Set<String>,
+    shuffling: Boolean,
     onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val gridState = rememberLazyGridState()
+    // moves glide only around a shuffle, so deleting books stays instant
+    var settling by remember { mutableStateOf(false) }
+    LaunchedEffect(shuffling) {
+        if (shuffling) {
+            settling = true
+        } else {
+            delay(SETTLE_MS)
+            settling = false
+        }
+    }
+    // on a new order the grid would follow its first visible cover; this keeps the rows in place
+    DisposableEffect(shuffling) {
+        gridState.requestScrollToItem(
+            index = gridState.firstVisibleItemIndex,
+            scrollOffset = gridState.firstVisibleItemScrollOffset,
+        )
+        onDispose {}
+    }
+    val placementSpec = when {
+        shuffling -> TUMBLE_SPRING
+        settling -> SNAP_BACK_SPRING
+        else -> NO_GLIDE
+    }
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
+        state = gridState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 128.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -259,22 +332,41 @@ private fun BookGrid(
             BookItem(
                 book = book,
                 selected = if (editing) book.id in selected else null,
+                tumbling = shuffling,
                 onClick = { onBookClick(book.id) },
+                modifier = Modifier.animateItem(
+                    fadeInSpec = null,
+                    placementSpec = placementSpec,
+                    fadeOutSpec = null,
+                ),
             )
         }
     }
 }
 
 /**
- * One grid cell: the cover, the title on two lines, and the progress row.
+ * One grid cell: the cover, the title on two lines, and the progress row. When [tumbling] turns
+ * on, the cell spins once, clockwise or not depending on the book.
  */
 @Composable
 private fun BookItem(
     book: Book,
     selected: Boolean?,
+    tumbling: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tumble = remember { Animatable(0f) }
+    LaunchedEffect(tumbling) {
+        if (tumbling) {
+            tumble.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = TUMBLE_MS, easing = FastOutSlowInEasing),
+            )
+        }
+        tumble.snapTo(0f)
+    }
+    val turn = if (book.id.hashCode() % 2 == 0) FULL_TURN else -FULL_TURN
     val label = if (selected == null) {
         stringResource(R.string.shelf_open_book, book.title)
     } else {
@@ -282,6 +374,13 @@ private fun BookItem(
     }
     Column(
         modifier = modifier
+            .graphicsLayer {
+                val progress = tumble.value
+                val scale = 1f + TUMBLE_LIFT * sin(PI.toFloat() * progress)
+                rotationZ = turn * progress
+                scaleX = scale
+                scaleY = scale
+            }
             .semantics { contentDescription = label }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
