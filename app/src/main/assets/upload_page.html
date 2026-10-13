@@ -101,10 +101,19 @@
     busy = false;
   }
 
+  function isTextFile(name) {
+    return name.toLowerCase().endsWith('.txt');
+  }
+
+  // files that are not .txt are skipped here, so they never travel to the phone
   function enqueue(files) {
     for (const file of files) {
       const li = addRow(file);
       li.file = file;
+      if (!isTextFile(file.name)) {
+        setStatus(li, 'Not a .txt file, skipped', 'err');
+        continue;
+      }
       queue.push(li);
     }
     drain();
