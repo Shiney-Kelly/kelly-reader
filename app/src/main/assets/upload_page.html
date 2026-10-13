@@ -52,8 +52,11 @@
   const queue = [];
   let busy = false;
 
+  // anything under a kilobyte, except an empty file, shows as 1 KB, the same as in the app
   function formatSize(bytes) {
-    return bytes < 1048576 ? Math.round(bytes / 1024) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB';
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+    const kb = Math.round(bytes / 1024);
+    return (bytes > 0 ? Math.max(kb, 1) : 0) + ' KB';
   }
 
   function addRow(file) {
