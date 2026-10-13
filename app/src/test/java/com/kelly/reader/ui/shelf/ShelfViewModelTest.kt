@@ -2,6 +2,7 @@ package com.kelly.reader.ui.shelf
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -9,6 +10,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -19,7 +21,7 @@ import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 
 /**
- * Checks edit mode, selection and deleting on the shelf.
+ * Checks edit mode, selection, deleting and the shake shuffle on the shelf.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShelfViewModelTest {
@@ -128,5 +130,68 @@ class ShelfViewModelTest {
         viewModel.deleteSelected()
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals("b3", settings.recent.value)
+    }
+
+    @Test
+    fun onShake_threeBooks_mixesUpTheOrderThenPutsItBack() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.onShake()
+        val shuffled = viewModel.uiState.value.shuffledIds
+        assertEquals(setOf("b1", "b2", "b3"), shuffled?.toSet())
+        assertNotEquals(listOf("b1", "b2", "b3"), shuffled)
+        assertEquals(shuffled, viewModel.uiState.value.shownBooks?.map { it.id })
+        dispatcher.scheduler.advanceTimeBy(SHUFFLE_MS - 1)
+        dispatcher.scheduler.runCurrent()
+        assertTrue(viewModel.uiState.value.shuffling)
+        dispatcher.scheduler.advanceTimeBy(1)
+        dispatcher.scheduler.runCurrent()
+        assertFalse(viewModel.uiState.value.shuffling)
+        assertEquals(books, viewModel.uiState.value.shownBooks)
+    }
+
+    @Test
+    fun onShake_twoBooks_swapsThem() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeBookRepository(books.take(2)))
+        viewModel.onShake()
+        assertEquals(listOf("b2", "b1"), viewModel.uiState.value.shuffledIds)
+    }
+
+    @Test
+    fun onShake_oneBook_doesNothing() = runTest(dispatcher) {
+        val viewModel = viewModel(FakeBookRepository(books.take(1)))
+        viewModel.onShake()
+        assertFalse(viewModel.uiState.value.shuffling)
+    }
+
+    @Test
+    fun onShake_editing_doesNothing() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.startEditing()
+        viewModel.onShake()
+        assertFalse(viewModel.uiState.value.shuffling)
+    }
+
+    @Test
+    fun onShake_whileMixedUp_keepsTheFirstOrderAndTimer() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.onShake()
+        val first = viewModel.uiState.value.shuffledIds
+        dispatcher.scheduler.advanceTimeBy(1_000)
+        viewModel.onShake()
+        assertEquals(first, viewModel.uiState.value.shuffledIds)
+        dispatcher.scheduler.advanceTimeBy(SHUFFLE_MS - 1_000)
+        dispatcher.scheduler.runCurrent()
+        assertFalse(viewModel.uiState.value.shuffling)
+    }
+
+    @Test
+    fun shownBooks_bookAddedWhileMixedUp_goesLast() = runTest(dispatcher) {
+        val repository = FakeBookRepository(books)
+        val viewModel = viewModel(repository)
+        viewModel.onShake()
+        val shuffled = viewModel.uiState.value.shuffledIds.orEmpty()
+        repository.books.update { it + Book("b4", "Four", "4.txt", 1, 1, 4) }
+        dispatcher.scheduler.runCurrent()
+        assertEquals(shuffled + "b4", viewModel.uiState.value.shownBooks?.map { it.id })
     }
 }
