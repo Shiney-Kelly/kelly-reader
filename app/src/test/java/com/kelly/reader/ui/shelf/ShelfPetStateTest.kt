@@ -153,6 +153,17 @@ class ShelfPetStateTest {
     }
 
     @Test
+    fun tick_animationsTurnedOffMidWalk_sitsAtOnceWhereItIs() {
+        val walking = ShelfPetState(mode = PetMode.WALK, x = 100f, step = 3)
+        val seated = walking.tick(MIN_X, MAX_X, random, animate = false)
+        assertEquals(PetMode.IDLE, seated.mode)
+        assertEquals(100f, seated.x)
+        assertEquals(PetFrame.IDLE_1, seated.frame(animate = false))
+        val tapped = walking.onTap().tick(MIN_X, MAX_X, random, animate = false)
+        assertEquals(PetMode.READ, tapped.mode)
+    }
+
+    @Test
     fun tick_ledgeNarrowerThanTheBear_keepsItInside() {
         val outside = ShelfPetState(x = 500f).tick(MIN_X, MAX_X, random)
         assertEquals(MAX_X, outside.x)

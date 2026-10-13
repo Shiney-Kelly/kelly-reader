@@ -74,12 +74,20 @@ data class ShelfPetState(
     /**
      * The state one [PET_TICK_MS] later, on a ledge where the bear's left edge may go from
      * [minX] to [maxX]. [random] picks the next rest. With [animate] off, as when the system
-     * removes animations, the bear never gets up; a tap still makes it read.
+     * removes animations, the bear never gets up and one that is on its feet sits at once; a
+     * tap still makes it read.
      */
     fun tick(minX: Float, maxX: Float, random: Random, animate: Boolean = true): ShelfPetState {
         val high = maxOf(minX, maxX)
         val here = x.coerceIn(minX, high)
         val time = elapsedMs + PET_TICK_MS
+        if (!animate && mode != PetMode.IDLE && mode != PetMode.READ) {
+            return if (readAfterSitting) {
+                copy(mode = PetMode.READ, x = here, elapsedMs = 0L, readAfterSitting = false)
+            } else {
+                rest(here, random)
+            }
+        }
         return when (mode) {
             PetMode.IDLE -> if (animate && time >= idleForMs) {
                 // head for the end that is farther away
