@@ -23,9 +23,9 @@ const val PET_MAX_IDLE_MS = 5 * 60_000L
 
 // ----- walking -----
 
-// planted paws in the walk frames slide back about 0.65 dp per frame with the bear drawn at
-// 68dp, so the bear moves as much and its feet do not skate
-const val PET_STEP_DP = 0.65f
+// planted paws in the walk frames slide back about 0.75 dp per frame with the bear drawn at
+// 78dp, so the bear moves as much and its feet do not skate
+const val PET_STEP_DP = 0.75f
 const val PET_START_X_DP = 24f
 
 private const val WALK_FRAMES = 8
