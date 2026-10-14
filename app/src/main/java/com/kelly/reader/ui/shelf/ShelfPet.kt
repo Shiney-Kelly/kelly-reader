@@ -73,7 +73,8 @@ private val LEDGE_SHADE_HEIGHT = 6.dp
 
 // ----- bear -----
 
-// the frames are cut on a 208 px square; sizes measured on it scale with the bear
+// sizes are measured on the 208 px square the art was cut on and scale with the bear; the
+// frames themselves are 312 px, the bear's 78dp at 4x
 private val PET_SIZE = 78.dp
 private const val CANVAS_PX = 208
 private val PET_MARGIN = 8.dp
@@ -159,8 +160,8 @@ fun ShelfPet(
 
     val resources = LocalResources.current
     val frames = remember(resources) {
-        // always the largest frames: the bear is drawn bigger than the frames were cut for, and
-        // shrinking a large frame stays sharp where stretching a small one blurs
+        // always the largest frames: at 312 px they hold the bear's 78dp at 4x, so they only ever
+        // shrink, which stays sharp where stretching a small frame blurs
         PetFrame.entries.associateWith {
             val drawable = resources.getDrawableForDensity(
                 frameRes(it),
