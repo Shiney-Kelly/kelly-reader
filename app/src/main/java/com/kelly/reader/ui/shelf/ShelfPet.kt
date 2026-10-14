@@ -101,9 +101,9 @@ private val HALF_SEAT_SINK = canvas(4)
 private val PET_SHADOW_WIDTH = canvas(160)
 private val PET_SHADOW_HEIGHT = canvas(28)
 
-// the bubble sits a little above the reading bear's head (9 px down the canvas, in the seated
+// the bubble sits a little above the reading bear's head (11 px down the canvas, in the seated
 // pose), a little right of its middle
-private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(9) + 3.dp
+private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(11) + 3.dp
 private val BUBBLE_SHIFT = canvas(120)
 private val BUBBLE_SHAPE = RoundedCornerShape(
     topStart = 10.dp,
@@ -293,7 +293,8 @@ private fun seatSink(frame: PetFrame): Dp = when (frame) {
     PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3,
     PetFrame.IDLE_4, PetFrame.IDLE_5, PetFrame.IDLE_6,
     PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3,
-    PetFrame.READ_4, PetFrame.READ_5, PetFrame.READ_6 -> SEAT_SINK
+    PetFrame.READ_4, PetFrame.READ_5, PetFrame.READ_6,
+    PetFrame.READ_7, PetFrame.READ_8 -> SEAT_SINK
     else -> 0.dp
 }
 
@@ -322,4 +323,6 @@ private fun frameRes(frame: PetFrame): Int = when (frame) {
     PetFrame.READ_4 -> R.drawable.shelf_pet_read_4
     PetFrame.READ_5 -> R.drawable.shelf_pet_read_5
     PetFrame.READ_6 -> R.drawable.shelf_pet_read_6
+    PetFrame.READ_7 -> R.drawable.shelf_pet_read_7
+    PetFrame.READ_8 -> R.drawable.shelf_pet_read_8
 }
