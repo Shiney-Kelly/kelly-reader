@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -75,6 +76,11 @@ private val LEDGE_SHADE_HEIGHT = 6.dp
 private val PET_SIZE = 52.dp
 private val PET_LIFT = 10.dp
 private val PET_FOOT_GAP = 3.dp
+
+// seated poses touch the ground only with the near paw, their seat and far foot stop a little
+// higher, so they sit lower than the standing ones
+private val SEAT_SINK = 2.dp
+private val HALF_SEAT_SINK = 1.dp
 private val PET_MARGIN = 8.dp
 
 // a soft oval under the bear grounds it on the ledge
@@ -203,13 +209,14 @@ fun ShelfPet(
         val label = stringResource(
             if (reading) R.string.shelf_pet_reading_label else R.string.shelf_pet_label,
         )
+        val frame = pet.frame(animate)
         Image(
-            bitmap = frames.getValue(pet.frame(animate)),
+            bitmap = frames.getValue(frame),
             contentDescription = null,
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = pet.x.dp)
-                .padding(bottom = PET_LIFT + navigationBar)
+                .padding(bottom = PET_LIFT - seatSink(frame) + navigationBar)
                 .size(PET_SIZE)
                 .graphicsLayer { scaleX = if (pet.facingRight) 1f else -1f }
                 .semantics {
@@ -242,6 +249,17 @@ fun ShelfPet(
             )
         }
     }
+}
+
+/**
+ * How much lower [frame] sits than a standing pose: the full [SEAT_SINK] when seated or
+ * reading, half of it halfway through sitting down, so the bear lowers smoothly into its seat.
+ */
+private fun seatSink(frame: PetFrame): Dp = when (frame) {
+    PetFrame.SIT_2 -> HALF_SEAT_SINK
+    PetFrame.SIT_3, PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3,
+    PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3 -> SEAT_SINK
+    else -> 0.dp
 }
 
 @DrawableRes
