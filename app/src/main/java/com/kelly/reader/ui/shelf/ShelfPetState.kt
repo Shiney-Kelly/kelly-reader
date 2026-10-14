@@ -12,10 +12,10 @@ const val PET_READ_FRAME_MS = 450L
 // reading plays its eight frames twice
 const val PET_READ_MS = 2 * 8 * PET_READ_FRAME_MS
 
-// the last sit-down frame is 92% as tall as the seated ones (170 against 185 of 208 px above the
-// ground line), so a seated pose that follows it grows from that height over a few ticks, and
-// before standing up the seated pose sinks to it
-const val PET_SIT_DOWN_HEIGHT = 0.92f
+// the last sit-down frame is 93% as tall as the seated ones (its head 168 against 181 of 208 px
+// above the paw line), so a seated pose that follows it grows from that height over a few
+// ticks, and before standing up the seated pose sinks to it
+const val PET_SIT_DOWN_HEIGHT = 0.93f
 const val PET_RISE_MS = 3 * PET_TICK_MS
 const val PET_CROUCH_MS = 2 * PET_TICK_MS
 const val PET_MIN_IDLE_MS = 3 * 60_000L
