@@ -34,10 +34,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalResources
@@ -68,10 +70,16 @@ private val LEDGE_SHADE_HEIGHT = 6.dp
 
 // ----- bear -----
 
-// the bear's box stands 12dp up, which puts the paws on the ledge's top edge
+// every frame leaves 3dp of empty canvas under the paws; the box stands 10dp up, so paws and
+// seat rest inside the ledge's top edge rather than on its upper line
 private val PET_SIZE = 52.dp
-private val PET_LIFT = 12.dp
+private val PET_LIFT = 10.dp
+private val PET_FOOT_GAP = 3.dp
 private val PET_MARGIN = 8.dp
+
+// a soft oval under the bear grounds it on the ledge
+private val PET_SHADOW_WIDTH = 40.dp
+private val PET_SHADOW_HEIGHT = 7.dp
 
 // the bubble sits above the bear's head, a little to the right
 private val BUBBLE_LIFT = 68.dp
@@ -169,6 +177,27 @@ fun ShelfPet(
                     .background(colors.ledge),
             )
         }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = pet.x.dp + (PET_SIZE - PET_SHADOW_WIDTH) / 2)
+                .padding(bottom = PET_LIFT + PET_FOOT_GAP - PET_SHADOW_HEIGHT / 2 + navigationBar)
+                .size(width = PET_SHADOW_WIDTH, height = PET_SHADOW_HEIGHT)
+                .drawBehind {
+                    // a round gradient squashed into an oval, dark in the middle and fading out
+                    scale(scaleX = 1f, scaleY = size.height / size.width) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(colors.petShadow, Color.Transparent),
+                                center = center,
+                                radius = size.width / 2,
+                            ),
+                            radius = size.width / 2,
+                        )
+                    }
+                },
+        )
 
         val reading = pet.mode == PetMode.READ
         val label = stringResource(

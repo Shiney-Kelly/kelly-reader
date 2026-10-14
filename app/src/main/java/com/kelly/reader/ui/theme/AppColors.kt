@@ -33,6 +33,7 @@ data class AppColors(
     val ledge: Color,
     val ledgeTop: Color,
     val ledgeShade: Color,
+    val petShadow: Color,
 )
 
 val LIGHT_APP_COLORS = AppColors(
@@ -54,6 +55,7 @@ val LIGHT_APP_COLORS = AppColors(
     ledge = LIGHT_LEDGE,
     ledgeTop = LIGHT_LEDGE_TOP,
     ledgeShade = LIGHT_LEDGE_SHADE,
+    petShadow = LIGHT_PET_SHADOW,
 )
 
 val DARK_APP_COLORS = AppColors(
@@ -75,6 +77,7 @@ val DARK_APP_COLORS = AppColors(
     ledge = DARK_LEDGE,
     ledgeTop = DARK_LEDGE_TOP,
     ledgeShade = DARK_LEDGE_SHADE,
+    petShadow = DARK_PET_SHADOW,
 )
 
 val LocalAppColors = staticCompositionLocalOf { LIGHT_APP_COLORS }

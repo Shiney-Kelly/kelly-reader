@@ -94,6 +94,8 @@ val LIGHT_LEDGE_SHADE = Color(0x2E786040)
 val DARK_LEDGE = Color(0xFF3A342E)
 val DARK_LEDGE_TOP = Color(0xFF4E453C)
 val DARK_LEDGE_SHADE = Color(0x40000000)
+val LIGHT_PET_SHADOW = Color(0x47503C28)
+val DARK_PET_SHADOW = Color(0x73000000)
 
 // ----- reader themes -----
 
