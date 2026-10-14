@@ -5,6 +5,7 @@
 package com.kelly.reader.ui.shelf
 
 import android.animation.ValueAnimator
+import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -38,12 +39,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -71,25 +71,34 @@ private val LEDGE_SHADE_HEIGHT = 6.dp
 
 // ----- bear -----
 
-// every frame leaves 3dp of empty canvas under the paws; the box stands 10dp up, so paws and
-// seat rest inside the ledge's top edge rather than on its upper line
-private val PET_SIZE = 52.dp
-private val PET_LIFT = 10.dp
-private val PET_FOOT_GAP = 3.dp
+// the frames are cut on a 208 px square; sizes measured on it scale with the bear
+private val PET_SIZE = 60.dp
+private const val CANVAS_PX = 208
+private val PET_MARGIN = 8.dp
+
+/**
+ * The on-screen size of [px] pixels of the frame canvas.
+ */
+private fun canvas(px: Int): Dp = PET_SIZE * px / CANVAS_PX
+
+// standing paws end 13dp up, inside the ledge's top edge; every frame leaves 12 px of empty
+// canvas under them
+private val PAW_LINE = 13.dp
+private val PET_FOOT_GAP = canvas(12)
+private val PET_LIFT = PAW_LINE - PET_FOOT_GAP
 
 // seated poses touch the ground only with the near paw, their seat and far foot stop a little
 // higher, so they sit lower than the standing ones
-private val SEAT_SINK = 2.dp
-private val HALF_SEAT_SINK = 1.dp
-private val PET_MARGIN = 8.dp
+private val SEAT_SINK = canvas(8)
+private val HALF_SEAT_SINK = canvas(4)
 
 // a soft oval under the bear grounds it on the ledge
-private val PET_SHADOW_WIDTH = 40.dp
-private val PET_SHADOW_HEIGHT = 7.dp
+private val PET_SHADOW_WIDTH = canvas(160)
+private val PET_SHADOW_HEIGHT = canvas(28)
 
-// the bubble sits above the bear's head, a little to the right
-private val BUBBLE_LIFT = 68.dp
-private val BUBBLE_SHIFT = 30.dp
+// the bubble sits just above the bear's box, a little right of its middle
+private val BUBBLE_LIFT = PET_LIFT + PET_SIZE + 4.dp
+private val BUBBLE_SHIFT = canvas(120)
 private val BUBBLE_SHAPE = RoundedCornerShape(
     topStart = 10.dp,
     topEnd = 10.dp,
@@ -142,7 +151,13 @@ fun ShelfPet(
 
     val resources = LocalResources.current
     val frames = remember(resources) {
-        PetFrame.entries.associateWith { ImageBitmap.imageResource(resources, frameRes(it)) }
+        // kept at the size stored for this screen, since the bear is drawn larger than the
+        // frames were cut for and scaling them down first would blur them
+        val options = BitmapFactory.Options().apply { inScaled = false }
+        PetFrame.entries.associateWith {
+            val bitmap = BitmapFactory.decodeResource(resources, frameRes(it), options)
+            requireNotNull(bitmap) { "Shelf bear frame $it did not decode" }.asImageBitmap()
+        }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -188,7 +203,7 @@ fun ShelfPet(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = pet.x.dp + (PET_SIZE - PET_SHADOW_WIDTH) / 2)
-                .padding(bottom = PET_LIFT + PET_FOOT_GAP - PET_SHADOW_HEIGHT / 2 + navigationBar)
+                .padding(bottom = PAW_LINE - PET_SHADOW_HEIGHT / 2 + navigationBar)
                 .size(width = PET_SHADOW_WIDTH, height = PET_SHADOW_HEIGHT)
                 .drawBehind {
                     // a round gradient squashed into an oval, dark in the middle and fading out
