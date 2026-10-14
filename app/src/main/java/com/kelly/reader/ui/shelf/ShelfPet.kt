@@ -248,7 +248,7 @@ fun ShelfPet(
                 .size(PET_SIZE)
                 .graphicsLayer {
                     scaleX = if (pet.facingRight) 1f else -1f
-                    scaleY = pet.height(animate)
+                    scaleY = pet.height(animate) * frameFit(frame)
                     transformOrigin = TransformOrigin(0.5f, PAW_LINE_FRACTION)
                 }
                 .semantics {
@@ -297,6 +297,17 @@ private fun seatSink(frame: PetFrame): Dp = when (frame) {
     PetFrame.READ_7, PetFrame.READ_8, PetFrame.READ_9, PetFrame.READ_10 -> SEAT_SINK
     else -> 0.dp
 }
+
+// read9 has the bear sitting up a little: its head is 6 px higher than in the reading frames
+// around it (187 against 181 of 208 px above the paw line) and the book 4 px higher, with the body
+// unchanged, so drawing it that much shorter keeps the head from bobbing
+private const val READ_9_FIT = 181f / 187f
+
+/**
+ * The share of its full height to draw [frame] at, so that a frame drawn taller than its
+ * neighbors lines up with them: below 1 only for [PetFrame.READ_9].
+ */
+private fun frameFit(frame: PetFrame): Float = if (frame == PetFrame.READ_9) READ_9_FIT else 1f
 
 @DrawableRes
 private fun frameRes(frame: PetFrame): Int = when (frame) {
