@@ -7,10 +7,10 @@ import kotlin.random.Random
 const val PET_TICK_MS = 125L
 const val PET_SIT_FRAME_MS = 160L
 const val PET_IDLE_FRAME_MS = 500L
-const val PET_READ_FRAME_MS = 450L
+const val PET_READ_FRAME_MS = 360L
 
-// reading plays its eight frames twice
-const val PET_READ_MS = 2 * 8 * PET_READ_FRAME_MS
+// reading plays its ten frames twice
+const val PET_READ_MS = 2 * 10 * PET_READ_FRAME_MS
 
 // the last sit-down frame is 93% as tall as the seated ones (its head 168 against 181 of 208 px
 // above the paw line), so a seated pose that follows it grows from that height over a few
@@ -44,12 +44,12 @@ enum class PetFrame {
     IDLE_1, IDLE_2, IDLE_3, IDLE_4, IDLE_5, IDLE_6,
     SIT_1, SIT_2, SIT_3,
     WALK_1, WALK_2, WALK_3, WALK_4, WALK_5, WALK_6, WALK_7, WALK_8,
-    READ_1, READ_2, READ_3, READ_4, READ_5, READ_6, READ_7, READ_8,
+    READ_1, READ_2, READ_3, READ_4, READ_5, READ_6, READ_7, READ_8, READ_9, READ_10,
 }
 
-// sitting looks around, blinks and twitches an ear; reading blinks, reaches for the page, grasps
-// and turns it and settles the new page; both loops run one way, the last frame leading back into
-// the first
+// sitting looks around, blinks and twitches an ear; reading blinks, reaches for the page, grasps,
+// lifts and turns it, lets it fall over and settles the new page; both loops run one way, the
+// last frame leading back into the first
 private val IDLE = listOf(
     PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3,
     PetFrame.IDLE_4, PetFrame.IDLE_5, PetFrame.IDLE_6,
@@ -60,8 +60,8 @@ private val WALK = listOf(
     PetFrame.WALK_5, PetFrame.WALK_6, PetFrame.WALK_7, PetFrame.WALK_8,
 )
 private val READ = listOf(
-    PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3, PetFrame.READ_4,
-    PetFrame.READ_5, PetFrame.READ_6, PetFrame.READ_7, PetFrame.READ_8,
+    PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3, PetFrame.READ_4, PetFrame.READ_5,
+    PetFrame.READ_6, PetFrame.READ_7, PetFrame.READ_8, PetFrame.READ_9, PetFrame.READ_10,
 )
 
 /**

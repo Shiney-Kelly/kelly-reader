@@ -182,19 +182,20 @@ class ShelfPetStateTest {
     }
 
     @Test
-    fun frame_reading_loopsOneToEightThenBackToOne() {
+    fun frame_reading_loopsOneToTenThenBackToOne() {
         val reading = ShelfPetState(mode = PetMode.READ)
-        val frames = (0..8).map { reading.copy(elapsedMs = it * PET_READ_FRAME_MS).frame() }
+        val frames = (0..10).map { reading.copy(elapsedMs = it * PET_READ_FRAME_MS).frame() }
         val loop = listOf(
-            PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3, PetFrame.READ_4,
-            PetFrame.READ_5, PetFrame.READ_6, PetFrame.READ_7, PetFrame.READ_8, PetFrame.READ_1,
+            PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3, PetFrame.READ_4, PetFrame.READ_5,
+            PetFrame.READ_6, PetFrame.READ_7, PetFrame.READ_8, PetFrame.READ_9, PetFrame.READ_10,
+            PetFrame.READ_1,
         )
         assertEquals(loop, frames)
     }
 
     @Test
     fun readMs_isTwoFullLoops() {
-        assertEquals(2 * 8 * PET_READ_FRAME_MS, PET_READ_MS)
+        assertEquals(2 * 10 * PET_READ_FRAME_MS, PET_READ_MS)
     }
 
     @Test
