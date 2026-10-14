@@ -74,7 +74,7 @@ private val LEDGE_SHADE_HEIGHT = 6.dp
 // ----- bear -----
 
 // the frames are cut on a 208 px square; sizes measured on it scale with the bear
-private val PET_SIZE = 68.dp
+private val PET_SIZE = 78.dp
 private const val CANVAS_PX = 208
 private val PET_MARGIN = 8.dp
 
