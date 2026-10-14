@@ -18,8 +18,8 @@ const val PET_READ_MS = 2 * 10 * PET_READ_FRAME_MS
 const val PET_SIT_DOWN_HEIGHT = 0.93f
 const val PET_RISE_MS = 3 * PET_TICK_MS
 const val PET_CROUCH_MS = 2 * PET_TICK_MS
-const val PET_MIN_IDLE_MS = 3 * 60_000L
-const val PET_MAX_IDLE_MS = 5 * 60_000L
+const val PET_MIN_IDLE_MS = 30_000L
+const val PET_MAX_IDLE_MS = 60_000L
 
 // ----- walking -----
 
@@ -65,7 +65,7 @@ private val READ = listOf(
 )
 
 /**
- * A random rest between walks, three to five minutes.
+ * A random rest between walks, half a minute to a minute.
  */
 fun nextIdleMs(random: Random): Long = random.nextLong(PET_MIN_IDLE_MS, PET_MAX_IDLE_MS + 1)
 
