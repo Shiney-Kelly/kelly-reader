@@ -5,7 +5,8 @@
 package com.kelly.reader.ui.shelf
 
 import android.animation.ValueAnimator
-import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import android.util.DisplayMetrics
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -72,7 +73,7 @@ private val LEDGE_SHADE_HEIGHT = 6.dp
 // ----- bear -----
 
 // the frames are cut on a 208 px square; sizes measured on it scale with the bear
-private val PET_SIZE = 60.dp
+private val PET_SIZE = 68.dp
 private const val CANVAS_PX = 208
 private val PET_MARGIN = 8.dp
 
@@ -151,12 +152,17 @@ fun ShelfPet(
 
     val resources = LocalResources.current
     val frames = remember(resources) {
-        // kept at the size stored for this screen, since the bear is drawn larger than the
-        // frames were cut for and scaling them down first would blur them
-        val options = BitmapFactory.Options().apply { inScaled = false }
+        // always the largest frames: the bear is drawn bigger than the frames were cut for, and
+        // shrinking a large frame stays sharp where stretching a small one blurs
         PetFrame.entries.associateWith {
-            val bitmap = BitmapFactory.decodeResource(resources, frameRes(it), options)
-            requireNotNull(bitmap) { "Shelf bear frame $it did not decode" }.asImageBitmap()
+            val drawable = resources.getDrawableForDensity(
+                frameRes(it),
+                DisplayMetrics.DENSITY_XXXHIGH,
+                null,
+            )
+            checkNotNull(drawable as? BitmapDrawable) { "Shelf bear frame $it is not a bitmap" }
+                .bitmap
+                .asImageBitmap()
         }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
