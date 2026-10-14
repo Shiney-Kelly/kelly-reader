@@ -97,8 +97,9 @@ private val HALF_SEAT_SINK = canvas(4)
 private val PET_SHADOW_WIDTH = canvas(160)
 private val PET_SHADOW_HEIGHT = canvas(28)
 
-// the bubble sits just above the bear's box, a little right of its middle
-private val BUBBLE_LIFT = PET_LIFT + PET_SIZE + 4.dp
+// the bubble sits a little above the reading bear's head (17 px down the canvas, in the seated
+// pose), a little right of its middle
+private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(17) + 3.dp
 private val BUBBLE_SHIFT = canvas(120)
 private val BUBBLE_SHAPE = RoundedCornerShape(
     topStart = 10.dp,
