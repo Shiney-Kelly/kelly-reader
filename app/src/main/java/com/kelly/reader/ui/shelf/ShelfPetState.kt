@@ -6,9 +6,11 @@ import kotlin.random.Random
 
 const val PET_TICK_MS = 125L
 const val PET_SIT_FRAME_MS = 160L
-const val PET_IDLE_FRAME_MS = 450L
+const val PET_IDLE_FRAME_MS = 500L
 const val PET_READ_FRAME_MS = 600L
-const val PET_READ_MS = 7_000L
+
+// reading plays its six frames twice
+const val PET_READ_MS = 2 * 6 * PET_READ_FRAME_MS
 const val PET_MIN_IDLE_MS = 3 * 60_000L
 const val PET_MAX_IDLE_MS = 5 * 60_000L
 
@@ -22,9 +24,6 @@ const val PET_START_X_DP = 24f
 private const val WALK_FRAMES = 8
 private const val SIT_FRAMES = 3
 
-// the idle and reading loops play their three frames 1 2 3 2, so the end flows into the start
-private val PING_PONG = intArrayOf(0, 1, 2, 1)
-
 /**
  * What the shelf bear is doing.
  */
@@ -35,19 +34,27 @@ enum class PetMode { IDLE, STAND_UP, WALK, SIT_DOWN, READ }
  * it when the bear faces left.
  */
 enum class PetFrame {
-    IDLE_1, IDLE_2, IDLE_3,
+    IDLE_1, IDLE_2, IDLE_3, IDLE_4, IDLE_5, IDLE_6,
     SIT_1, SIT_2, SIT_3,
     WALK_1, WALK_2, WALK_3, WALK_4, WALK_5, WALK_6, WALK_7, WALK_8,
-    READ_1, READ_2, READ_3,
+    READ_1, READ_2, READ_3, READ_4, READ_5, READ_6,
 }
 
-private val IDLE = listOf(PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3)
+// sitting looks around, blinks and twitches an ear; reading blinks, reaches for the page and
+// turns it; both loops run one way, the last frame leading back into the first
+private val IDLE = listOf(
+    PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3,
+    PetFrame.IDLE_4, PetFrame.IDLE_5, PetFrame.IDLE_6,
+)
 private val SIT = listOf(PetFrame.SIT_1, PetFrame.SIT_2, PetFrame.SIT_3)
 private val WALK = listOf(
     PetFrame.WALK_1, PetFrame.WALK_2, PetFrame.WALK_3, PetFrame.WALK_4,
     PetFrame.WALK_5, PetFrame.WALK_6, PetFrame.WALK_7, PetFrame.WALK_8,
 )
-private val READ = listOf(PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3)
+private val READ = listOf(
+    PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3,
+    PetFrame.READ_4, PetFrame.READ_5, PetFrame.READ_6,
+)
 
 /**
  * A random rest between walks, three to five minutes.
@@ -159,16 +166,15 @@ data class ShelfPetState(
     fun frame(animate: Boolean = true): PetFrame {
         val sitIndex = (elapsedMs / PET_SIT_FRAME_MS).toInt().coerceAtMost(SIT_FRAMES - 1)
         return when (mode) {
-            PetMode.IDLE -> if (animate) IDLE[pingPong(PET_IDLE_FRAME_MS)] else IDLE.first()
+            PetMode.IDLE -> if (animate) IDLE[loop(IDLE.size, PET_IDLE_FRAME_MS)] else IDLE.first()
             PetMode.STAND_UP -> SIT[SIT_FRAMES - 1 - sitIndex]
             PetMode.WALK -> WALK[step % WALK_FRAMES]
             PetMode.SIT_DOWN -> SIT[sitIndex]
-            PetMode.READ -> if (animate) READ[pingPong(PET_READ_FRAME_MS)] else READ.first()
+            PetMode.READ -> if (animate) READ[loop(READ.size, PET_READ_FRAME_MS)] else READ.first()
         }
     }
 
-    private fun pingPong(frameMs: Long): Int =
-        PING_PONG[((elapsedMs / frameMs) % PING_PONG.size).toInt()]
+    private fun loop(frames: Int, frameMs: Long): Int = ((elapsedMs / frameMs) % frames).toInt()
 
     private fun rest(here: Float, random: Random): ShelfPetState = copy(
         mode = PetMode.IDLE,

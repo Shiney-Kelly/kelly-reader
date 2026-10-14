@@ -97,9 +97,9 @@ private val HALF_SEAT_SINK = canvas(4)
 private val PET_SHADOW_WIDTH = canvas(160)
 private val PET_SHADOW_HEIGHT = canvas(28)
 
-// the bubble sits a little above the reading bear's head (17 px down the canvas, in the seated
+// the bubble sits a little above the reading bear's head (9 px down the canvas, in the seated
 // pose), a little right of its middle
-private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(17) + 3.dp
+private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(9) + 3.dp
 private val BUBBLE_SHIFT = canvas(120)
 private val BUBBLE_SHAPE = RoundedCornerShape(
     topStart = 10.dp,
@@ -279,8 +279,11 @@ fun ShelfPet(
  */
 private fun seatSink(frame: PetFrame): Dp = when (frame) {
     PetFrame.SIT_2 -> HALF_SEAT_SINK
-    PetFrame.SIT_3, PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3,
-    PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3 -> SEAT_SINK
+    PetFrame.SIT_3,
+    PetFrame.IDLE_1, PetFrame.IDLE_2, PetFrame.IDLE_3,
+    PetFrame.IDLE_4, PetFrame.IDLE_5, PetFrame.IDLE_6,
+    PetFrame.READ_1, PetFrame.READ_2, PetFrame.READ_3,
+    PetFrame.READ_4, PetFrame.READ_5, PetFrame.READ_6 -> SEAT_SINK
     else -> 0.dp
 }
 
@@ -289,6 +292,9 @@ private fun frameRes(frame: PetFrame): Int = when (frame) {
     PetFrame.IDLE_1 -> R.drawable.shelf_pet_idle_1
     PetFrame.IDLE_2 -> R.drawable.shelf_pet_idle_2
     PetFrame.IDLE_3 -> R.drawable.shelf_pet_idle_3
+    PetFrame.IDLE_4 -> R.drawable.shelf_pet_idle_4
+    PetFrame.IDLE_5 -> R.drawable.shelf_pet_idle_5
+    PetFrame.IDLE_6 -> R.drawable.shelf_pet_idle_6
     PetFrame.SIT_1 -> R.drawable.shelf_pet_sit_1
     PetFrame.SIT_2 -> R.drawable.shelf_pet_sit_2
     PetFrame.SIT_3 -> R.drawable.shelf_pet_sit_3
@@ -303,4 +309,7 @@ private fun frameRes(frame: PetFrame): Int = when (frame) {
     PetFrame.READ_1 -> R.drawable.shelf_pet_read_1
     PetFrame.READ_2 -> R.drawable.shelf_pet_read_2
     PetFrame.READ_3 -> R.drawable.shelf_pet_read_3
+    PetFrame.READ_4 -> R.drawable.shelf_pet_read_4
+    PetFrame.READ_5 -> R.drawable.shelf_pet_read_5
+    PetFrame.READ_6 -> R.drawable.shelf_pet_read_6
 }
