@@ -101,14 +101,14 @@ class ShelfPetStateTest {
     }
 
     @Test
-    fun tick_walking_movesHalfDpAndLoopsEightFrames() {
+    fun tick_walking_movesOneStepAFrameAndLoopsEightFrames() {
         var state = ShelfPetState(mode = PetMode.WALK, x = 100f)
         val frames = mutableListOf(state.frame())
         repeat(8) {
             state = state.ticks(1)
             frames += state.frame()
         }
-        assertEquals(100f + 8 * PET_STEP_DP, state.x)
+        assertEquals(100f + 8 * PET_STEP_DP, state.x, 0.001f)
         val walk = listOf(
             PetFrame.WALK_1, PetFrame.WALK_2, PetFrame.WALK_3, PetFrame.WALK_4,
             PetFrame.WALK_5, PetFrame.WALK_6, PetFrame.WALK_7, PetFrame.WALK_8, PetFrame.WALK_1,
@@ -119,7 +119,7 @@ class ShelfPetStateTest {
     @Test
     fun tick_walkingLeft_movesTowardTheStart() {
         val state = ShelfPetState(mode = PetMode.WALK, x = 100f, facingRight = false).ticks(4)
-        assertEquals(100f - 4 * PET_STEP_DP, state.x)
+        assertEquals(100f - 4 * PET_STEP_DP, state.x, 0.001f)
         assertFalse(state.facingRight)
     }
 
