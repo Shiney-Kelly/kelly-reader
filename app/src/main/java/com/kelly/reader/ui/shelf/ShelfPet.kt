@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalResources
@@ -86,6 +87,9 @@ private fun canvas(px: Int): Dp = PET_SIZE * px / CANVAS_PX
 // canvas under them
 private val PAW_LINE = 13.dp
 private val PET_FOOT_GAP = canvas(12)
+
+// the paw line as a share of the frame's height, where the bear stands when it grows or sinks
+private const val PAW_LINE_FRACTION = (CANVAS_PX - 12f) / CANVAS_PX
 private val PET_LIFT = PAW_LINE - PET_FOOT_GAP
 
 // seated poses touch the ground only with the near paw, their seat and far foot stop a little
@@ -118,6 +122,7 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
             it.step,
             it.readAfterSitting,
             it.idleForMs,
+            it.rising,
         )
     },
     restore = {
@@ -129,6 +134,7 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
             step = it[4] as Int,
             readAfterSitting = it[5] as Boolean,
             idleForMs = it[6] as Long,
+            rising = it.getOrNull(7) as? Boolean ?: false,
         )
     },
 )
@@ -240,7 +246,11 @@ fun ShelfPet(
                 .offset(x = pet.x.dp)
                 .padding(bottom = PET_LIFT - seatSink(frame) + navigationBar)
                 .size(PET_SIZE)
-                .graphicsLayer { scaleX = if (pet.facingRight) 1f else -1f }
+                .graphicsLayer {
+                    scaleX = if (pet.facingRight) 1f else -1f
+                    scaleY = pet.height(animate)
+                    transformOrigin = TransformOrigin(0.5f, PAW_LINE_FRACTION)
+                }
                 .semantics {
                     contentDescription = label
                     role = Role.Button

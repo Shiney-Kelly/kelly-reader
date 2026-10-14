@@ -11,6 +11,13 @@ const val PET_READ_FRAME_MS = 600L
 
 // reading plays its six frames twice
 const val PET_READ_MS = 2 * 6 * PET_READ_FRAME_MS
+
+// the last sit-down frame is 92% as tall as the seated ones (170 against 185 of 208 px above the
+// ground line), so a seated pose that follows it grows from that height over a few ticks, and
+// before standing up the seated pose sinks to it
+const val PET_SIT_DOWN_HEIGHT = 0.92f
+const val PET_RISE_MS = 3 * PET_TICK_MS
+const val PET_CROUCH_MS = 2 * PET_TICK_MS
 const val PET_MIN_IDLE_MS = 3 * 60_000L
 const val PET_MAX_IDLE_MS = 5 * 60_000L
 
@@ -65,8 +72,8 @@ fun nextIdleMs(random: Random): Long = random.nextLong(PET_MIN_IDLE_MS, PET_MAX_
  * The shelf bear at one moment. It sits ([PetMode.IDLE]) for [idleForMs], stands up, walks to
  * the far end of the ledge and sits down again. A tap makes it sit and read for a few seconds.
  * [x] is the bear's left edge in dp from the start of the ledge, [elapsedMs] the time spent in
- * the current mode, [step] the walk frame, and [readAfterSitting] remembers a tap that came
- * while it was on its feet.
+ * the current mode, [step] the walk frame, [readAfterSitting] remembers a tap that came while
+ * it was on its feet, and [rising] marks a seated pose that has just followed sitting down.
  */
 data class ShelfPetState(
     val mode: PetMode = PetMode.IDLE,
@@ -76,6 +83,7 @@ data class ShelfPetState(
     val step: Int = 0,
     val readAfterSitting: Boolean = false,
     val idleForMs: Long = PET_MIN_IDLE_MS,
+    val rising: Boolean = false,
 ) {
 
     /**
@@ -90,9 +98,15 @@ data class ShelfPetState(
         val time = elapsedMs + PET_TICK_MS
         if (!animate && mode != PetMode.IDLE && mode != PetMode.READ) {
             return if (readAfterSitting) {
-                copy(mode = PetMode.READ, x = here, elapsedMs = 0L, readAfterSitting = false)
+                copy(
+                    mode = PetMode.READ,
+                    x = here,
+                    elapsedMs = 0L,
+                    readAfterSitting = false,
+                    rising = false,
+                )
             } else {
-                rest(here, random)
+                rest(here, random, rising = false)
             }
         }
         return when (mode) {
@@ -103,11 +117,12 @@ data class ShelfPetState(
                     x = here,
                     facingRight = here <= (minX + high) / 2,
                     elapsedMs = 0L,
+                    rising = false,
                 )
             } else {
                 copy(x = here, elapsedMs = time)
             }
-            PetMode.STAND_UP -> if (time >= SIT_FRAMES * PET_SIT_FRAME_MS) {
+            PetMode.STAND_UP -> if (time >= PET_CROUCH_MS + SIT_FRAMES * PET_SIT_FRAME_MS) {
                 copy(mode = PetMode.WALK, x = here, elapsedMs = 0L, step = 0)
             } else {
                 copy(x = here, elapsedMs = time)
@@ -132,11 +147,12 @@ data class ShelfPetState(
                     x = here,
                     elapsedMs = 0L,
                     readAfterSitting = false,
+                    rising = true,
                 )
-                else -> rest(here, random)
+                else -> rest(here, random, rising = true)
             }
             PetMode.READ -> if (time >= PET_READ_MS) {
-                rest(here, random)
+                rest(here, random, rising = false)
             } else {
                 copy(x = here, elapsedMs = time)
             }
@@ -145,18 +161,41 @@ data class ShelfPetState(
 
     /**
      * The state after a tap on the bear: on its feet it sits down first and then reads, sitting
-     * it reads at once, and a tap while it reads changes nothing.
+     * (or only just sinking to stand up) it reads at once, and a tap while it reads changes
+     * nothing.
      */
-    fun onTap(): ShelfPetState = when (mode) {
-        PetMode.WALK, PetMode.STAND_UP -> copy(
+    fun onTap(): ShelfPetState = when {
+        mode == PetMode.STAND_UP && elapsedMs < PET_CROUCH_MS -> copy(
+            mode = PetMode.READ,
+            elapsedMs = 0L,
+            rising = false,
+        )
+        mode == PetMode.WALK || mode == PetMode.STAND_UP -> copy(
             mode = PetMode.SIT_DOWN,
             elapsedMs = 0L,
             step = 0,
             readAfterSitting = true,
         )
-        PetMode.SIT_DOWN -> copy(readAfterSitting = true)
-        PetMode.IDLE -> copy(mode = PetMode.READ, elapsedMs = 0L)
-        PetMode.READ -> this
+        mode == PetMode.SIT_DOWN -> copy(readAfterSitting = true)
+        mode == PetMode.IDLE -> copy(mode = PetMode.READ, elapsedMs = 0L, rising = false)
+        else -> this
+    }
+
+    /**
+     * How tall to draw the bear now, as a share of its full height, measured from the ground
+     * line: under 1 while a seated pose grows after sitting down or sinks before standing up,
+     * otherwise 1. With [animate] off it is always 1.
+     */
+    fun height(animate: Boolean = true): Float {
+        if (!animate) return 1f
+        val low = PET_SIT_DOWN_HEIGHT
+        return when {
+            rising && (mode == PetMode.IDLE || mode == PetMode.READ) && elapsedMs < PET_RISE_MS ->
+                low + (1f - low) * elapsedMs / PET_RISE_MS
+            mode == PetMode.STAND_UP && elapsedMs < PET_CROUCH_MS ->
+                1f - (1f - low) * elapsedMs / PET_CROUCH_MS
+            else -> 1f
+        }
     }
 
     /**
@@ -165,9 +204,15 @@ data class ShelfPetState(
      */
     fun frame(animate: Boolean = true): PetFrame {
         val sitIndex = (elapsedMs / PET_SIT_FRAME_MS).toInt().coerceAtMost(SIT_FRAMES - 1)
+        val standIndex = ((elapsedMs - PET_CROUCH_MS) / PET_SIT_FRAME_MS).toInt()
+            .coerceIn(0, SIT_FRAMES - 1)
         return when (mode) {
             PetMode.IDLE -> if (animate) IDLE[loop(IDLE.size, PET_IDLE_FRAME_MS)] else IDLE.first()
-            PetMode.STAND_UP -> SIT[SIT_FRAMES - 1 - sitIndex]
+            PetMode.STAND_UP -> if (elapsedMs < PET_CROUCH_MS) {
+                IDLE.first()
+            } else {
+                SIT[SIT_FRAMES - 1 - standIndex]
+            }
             PetMode.WALK -> WALK[step % WALK_FRAMES]
             PetMode.SIT_DOWN -> SIT[sitIndex]
             PetMode.READ -> if (animate) READ[loop(READ.size, PET_READ_FRAME_MS)] else READ.first()
@@ -176,11 +221,12 @@ data class ShelfPetState(
 
     private fun loop(frames: Int, frameMs: Long): Int = ((elapsedMs / frameMs) % frames).toInt()
 
-    private fun rest(here: Float, random: Random): ShelfPetState = copy(
+    private fun rest(here: Float, random: Random, rising: Boolean): ShelfPetState = copy(
         mode = PetMode.IDLE,
         x = here,
         elapsedMs = 0L,
         step = 0,
         idleForMs = nextIdleMs(random),
+        rising = rising,
     )
 }

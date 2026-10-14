@@ -42,13 +42,62 @@ class ShelfPetStateTest {
     }
 
     @Test
-    fun tick_standingUp_playsSitFramesBackwardThenWalks() {
+    fun tick_standingUp_sinksThenPlaysSitFramesBackwardThenWalks() {
         val start = ShelfPetState(mode = PetMode.STAND_UP)
-        assertEquals(PetFrame.SIT_3, start.frame())
-        assertEquals(PetFrame.SIT_2, start.copy(elapsedMs = PET_SIT_FRAME_MS).frame())
-        assertEquals(PetFrame.SIT_1, start.copy(elapsedMs = 2 * PET_SIT_FRAME_MS).frame())
-        assertEquals(PetMode.STAND_UP, start.ticks(3).mode)
-        assertEquals(PetMode.WALK, start.ticks(4).mode)
+        assertEquals(PetFrame.IDLE_1, start.frame())
+        assertEquals(1f, start.height(), 0.001f)
+        val sinking = start.copy(elapsedMs = PET_TICK_MS)
+        assertEquals(PetFrame.IDLE_1, sinking.frame())
+        assertEquals(1f - (1f - PET_SIT_DOWN_HEIGHT) / 2, sinking.height(), 0.001f)
+        assertEquals(PetFrame.SIT_3, start.copy(elapsedMs = PET_CROUCH_MS).frame())
+        assertEquals(1f, start.copy(elapsedMs = PET_CROUCH_MS).height(), 0.001f)
+        val sitFrames = (1..2).map {
+            start.copy(elapsedMs = PET_CROUCH_MS + it * PET_SIT_FRAME_MS).frame()
+        }
+        assertEquals(listOf(PetFrame.SIT_2, PetFrame.SIT_1), sitFrames)
+        assertEquals(PetMode.STAND_UP, start.ticks(5).mode)
+        assertEquals(PetMode.WALK, start.ticks(6).mode)
+    }
+
+    @Test
+    fun tick_sittingDownEnds_seatedPoseGrowsFromSitDownHeight() {
+        val seated = ShelfPetState(mode = PetMode.SIT_DOWN, x = 100f).ticks(4)
+        assertEquals(PetMode.IDLE, seated.mode)
+        assertTrue(seated.rising)
+        assertEquals(PET_SIT_DOWN_HEIGHT, seated.height(), 0.001f)
+        val heights = (1..3).map { seated.ticks(it).height() }
+        assertTrue(heights[0] > PET_SIT_DOWN_HEIGHT && heights[1] > heights[0])
+        assertEquals(1f, heights[2], 0.001f)
+        assertEquals(1f, seated.ticks(20).height(), 0.001f)
+    }
+
+    @Test
+    fun tick_tappedWhileWalking_readingPoseGrowsToo() {
+        val reading = ShelfPetState(mode = PetMode.WALK, x = 100f).onTap().ticks(4)
+        assertEquals(PetMode.READ, reading.mode)
+        assertEquals(PET_SIT_DOWN_HEIGHT, reading.height(), 0.001f)
+        assertEquals(1f, reading.ticks(3).height(), 0.001f)
+    }
+
+    @Test
+    fun height_seatedFromTheStartOrAfterReading_isFull() {
+        assertEquals(1f, ShelfPetState().height(), 0.001f)
+        val afterReading = ShelfPetState(mode = PetMode.READ).ticks(ticksFor(PET_READ_MS))
+        assertEquals(PetMode.IDLE, afterReading.mode)
+        assertEquals(1f, afterReading.height(), 0.001f)
+    }
+
+    @Test
+    fun onTap_whileSinkingToStandUp_readsAtOnce() {
+        val tapped = ShelfPetState(mode = PetMode.STAND_UP, elapsedMs = PET_TICK_MS).onTap()
+        assertEquals(PetMode.READ, tapped.mode)
+        assertEquals(1f, tapped.height(), 0.001f)
+    }
+
+    @Test
+    fun height_animationsOff_isAlwaysFull() {
+        val seated = ShelfPetState(mode = PetMode.SIT_DOWN, x = 100f).ticks(4)
+        assertEquals(1f, seated.height(animate = false), 0.001f)
     }
 
     @Test
