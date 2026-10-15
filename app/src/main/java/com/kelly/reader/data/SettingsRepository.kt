@@ -2,6 +2,7 @@ package com.kelly.reader.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -21,8 +22,8 @@ import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
 
 /**
- * The recent book, the reading settings and the reading streak. An interface so tests can use
- * a fake.
+ * The recent book, the reading settings, the reading streak and whether the shelf bear has been
+ * found. An interface so tests can use a fake.
  */
 interface SettingsRepository {
 
@@ -69,6 +70,13 @@ interface SettingsRepository {
      * the stored time and timezone.
      */
     suspend fun recordReadingDay(now: ZonedDateTime)
+
+    /**
+     * Whether someone has found the shelf bear, which stays hidden until then.
+     */
+    val shelfPetFound: Flow<Boolean>
+
+    suspend fun setShelfPetFound(found: Boolean)
 }
 
 /**
@@ -135,6 +143,14 @@ class DataStoreSettingsRepository(
         }
     }
 
+    override val shelfPetFound: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[SHELF_PET_FOUND] ?: false
+    }
+
+    override suspend fun setShelfPetFound(found: Boolean) {
+        dataStore.edit { prefs -> prefs[SHELF_PET_FOUND] = found }
+    }
+
     private fun Preferences.streak(): ReadingStreak = ReadingStreak(
         days = this[STREAK_DAYS] ?: 0,
         lastDay = this[STREAK_LAST_DAY]?.let(LocalDate::ofEpochDay),
@@ -156,5 +172,6 @@ class DataStoreSettingsRepository(
         val STREAK_LAST_DAY = longPreferencesKey("streak_last_day")
         val STREAK_LAST_READ_AT = longPreferencesKey("streak_last_read_at")
         val STREAK_LAST_ZONE = stringPreferencesKey("streak_last_zone")
+        val SHELF_PET_FOUND = booleanPreferencesKey("shelf_pet_found")
     }
 }

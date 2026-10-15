@@ -19,11 +19,13 @@ class FakeSettingsRepository(
     recentBookId: String? = null,
     settings: ReaderSettings = ReaderSettings(),
     streak: ReadingStreak = ReadingStreak(),
+    shelfPetFound: Boolean = false,
 ) : SettingsRepository {
 
     val recent = MutableStateFlow(recentBookId)
     val settings = MutableStateFlow(settings)
     val streak = MutableStateFlow(streak)
+    val petFound = MutableStateFlow(shelfPetFound)
 
     override val recentBookId: Flow<String?> = recent
 
@@ -62,5 +64,11 @@ class FakeSettingsRepository(
 
     override suspend fun recordReadingDay(now: ZonedDateTime) {
         streak.update { it.recordedOn(now) }
+    }
+
+    override val shelfPetFound: Flow<Boolean> = petFound
+
+    override suspend fun setShelfPetFound(found: Boolean) {
+        petFound.value = found
     }
 }
