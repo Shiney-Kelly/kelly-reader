@@ -6,11 +6,13 @@ package com.kelly.reader.ui.shelf
 
 import android.animation.ValueAnimator
 import android.graphics.drawable.BitmapDrawable
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -28,6 +31,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -44,6 +49,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -145,17 +151,23 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
  * and then walks to the other end, and sits down to read when tapped. [visible] false hides
  * both and pauses the bear, as in edit mode; the bear also pauses while the screen is not
  * resumed, and stays seated when the system has animations turned off. It keeps its place
- * while a book is open.
+ * while a book is open. Until [found] only the ledge shows: three quick knocks on it call the
+ * bear, which peeks in from the nearer screen edge and walks on, and [onFound] keeps it.
  */
 @Composable
 fun ShelfPet(
     visible: Boolean,
+    found: Boolean,
+    onFound: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var pet by rememberSaveable(stateSaver = PET_SAVER) {
         mutableStateOf(ShelfPetState(idleForMs = nextIdleMs(Random.Default)))
     }
     var animate by remember { mutableStateOf(true) }
+    var knocks by remember { mutableIntStateOf(0) }
+    var lastKnockMs by remember { mutableLongStateOf(0L) }
+    val onFoundNow by rememberUpdatedState(onFound)
     if (!visible) return
 
     val resources = LocalResources.current
@@ -175,12 +187,16 @@ fun ShelfPet(
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val gestureZone = WindowInsets.mandatorySystemGestures.asPaddingValues()
+        .calculateBottomPadding()
     val colors = AppTheme.colors
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val widthPx = constraints.maxWidth
         val maxX by rememberUpdatedState((maxWidth - PET_MARGIN - PET_SIZE).value)
-        LaunchedEffect(lifecycleOwner) {
+        LaunchedEffect(lifecycleOwner, found) {
+            // a hidden bear stays where it is until a knock calls it
+            if (!found) return@LaunchedEffect
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 animate = ValueAnimator.areAnimatorsEnabled()
                 while (true) {
@@ -212,6 +228,40 @@ fun ShelfPet(
                     .background(colors.ledge),
             )
         }
+
+        if (!found) {
+            // while the bear is hidden, three quick knocks on the ledge call it in from the
+            // nearer side; the knocks count from the ledge's shade down to where the system's
+            // home gesture begins, since quick taps below that can send the app home
+            val ledgeTop = LEDGE_SHADE_HEIGHT + LEDGE_TOP_HEIGHT + LEDGE_HEIGHT + navigationBar
+            val knockHeight = ledgeTop - gestureZone
+            if (knockHeight > 0.dp) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(bottom = gestureZone)
+                        .fillMaxWidth()
+                        .height(knockHeight)
+                        .pointerInput(Unit) {
+                            detectTapGestures { tap ->
+                                val now = SystemClock.uptimeMillis()
+                                knocks = knocksInRow(knocks, lastKnockMs, now)
+                                lastKnockMs = now
+                                if (knocks >= PET_KNOCKS) {
+                                    knocks = 0
+                                    pet = enteringPet(
+                                        fromLeft = tap.x < size.width / 2f,
+                                        ledgeWidth = size.width.toDp().value,
+                                        petSize = PET_SIZE.value,
+                                    )
+                                    onFoundNow()
+                                }
+                            }
+                        },
+                )
+            }
+        }
+        if (!found || !pet.shown) return@BoxWithConstraints
 
         Box(
             modifier = Modifier

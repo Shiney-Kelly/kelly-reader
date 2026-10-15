@@ -13,7 +13,7 @@ import com.kelly.reader.di.appContainer
 /**
  * The bookshelf screen entry: builds the ViewModel and wires its state to [ShelfScreen].
  * A tap on a book opens it, or toggles its selection while editing. A long shake mixes up the
- * covers for a moment.
+ * covers for a moment. Three quick knocks on the ledge bring out the hidden shelf bear.
  */
 @Composable
 fun ShelfRoute(
@@ -39,6 +39,7 @@ fun ShelfRoute(
         onDoneClick = viewModel::stopEditing,
         onAddClick = onAddBooks,
         onDeleteClick = viewModel::deleteSelected,
+        onPetFound = viewModel::onPetFound,
         modifier = modifier,
     )
 }

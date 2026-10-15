@@ -104,6 +104,7 @@ private val NO_GLIDE = snap<IntOffset>()
 /**
  * The bookshelf: a title row with Edit and Add, a three column grid of covers, the ledge with
  * the shelf bear along the bottom, and the delete bar in its place while books are selected.
+ * [onPetFound] is called when someone knocks the hidden bear out onto the ledge.
  */
 @Composable
 fun ShelfScreen(
@@ -113,6 +114,7 @@ fun ShelfScreen(
     onDoneClick: () -> Unit,
     onAddClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onPetFound: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -139,6 +141,8 @@ fun ShelfScreen(
         }
         ShelfPet(
             visible = !uiState.editing,
+            found = uiState.petFound,
+            onFound = onPetFound,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         if (uiState.editing && uiState.selectedCount > 0) {
@@ -453,7 +457,10 @@ internal val PREVIEW_BOOKS = listOf(
 private fun ShelfScreenPreview() {
     KellyReaderTheme {
         Box(modifier = Modifier.height(844.dp)) {
-            ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {}, {})
+            ShelfScreen(
+                ShelfUiState(books = PREVIEW_BOOKS, petFound = true),
+                {}, {}, {}, {}, {}, {},
+            )
         }
     }
 }
@@ -462,7 +469,10 @@ private fun ShelfScreenPreview() {
 @Composable
 private fun ShelfScreenDarkPreview() {
     KellyReaderTheme {
-        ShelfScreen(ShelfUiState(books = PREVIEW_BOOKS), {}, {}, {}, {}, {})
+        ShelfScreen(
+            ShelfUiState(books = PREVIEW_BOOKS, petFound = true),
+            {}, {}, {}, {}, {}, {},
+        )
     }
 }
 
@@ -470,7 +480,7 @@ private fun ShelfScreenDarkPreview() {
 @Composable
 private fun ShelfScreenEmptyPreview() {
     KellyReaderTheme {
-        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {})
+        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -480,7 +490,7 @@ private fun ShelfScreenEditPreview() {
     KellyReaderTheme {
         ShelfScreen(
             ShelfUiState(books = PREVIEW_BOOKS, editing = true, selected = setOf("b3", "b6")),
-            {}, {}, {}, {}, {},
+            {}, {}, {}, {}, {}, {},
         )
     }
 }
