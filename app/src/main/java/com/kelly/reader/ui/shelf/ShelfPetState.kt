@@ -28,13 +28,25 @@ const val PET_MAX_IDLE_MS = 15_000L
 const val PET_STEP_DP = 0.75f
 const val PET_START_X_DP = 24f
 
+// ----- finding the bear -----
+
+// three knocks on the ledge, each within half a second of the last, call the hidden bear
+const val PET_KNOCKS = 3
+const val PET_KNOCK_GAP_MS = 500L
+
+// after the knocks it waits a moment, then peeks in from the screen edge, showing a little under
+// half of itself, holds still, and walks onto the ledge
+const val PET_ANSWER_MS = 600L
+const val PET_PEEK_MS = 1_200L
+const val PET_PEEK_SHARE = 0.45f
+
 private const val WALK_FRAMES = 8
 private const val SIT_FRAMES = 3
 
 /**
  * What the shelf bear is doing.
  */
-enum class PetMode { IDLE, STAND_UP, WALK, SIT_DOWN, READ }
+enum class PetMode { IDLE, STAND_UP, WALK, SIT_DOWN, READ, ENTER }
 
 /**
  * One drawing of the bear, facing right. The screen maps each one to its bitmap and mirrors
@@ -70,8 +82,32 @@ private val READ = listOf(
 fun nextIdleMs(random: Random): Long = random.nextLong(PET_MIN_IDLE_MS, PET_MAX_IDLE_MS + 1)
 
 /**
+ * How many knocks on the ledge in a row there are after one at [nowMs], given [count] knocks so
+ * far with the last at [lastMs]: one more when it follows within [PET_KNOCK_GAP_MS], otherwise
+ * a new run of one.
+ */
+fun knocksInRow(count: Int, lastMs: Long, nowMs: Long): Int =
+    if (count > 0 && nowMs - lastMs in 0..PET_KNOCK_GAP_MS) count + 1 else 1
+
+/**
+ * The bear answering a knock: about to peek in from the left edge when [fromLeft], else from the
+ * right edge of a ledge [ledgeWidth] dp wide, with the bear [petSize] dp wide, facing in.
+ */
+fun enteringPet(
+    fromLeft: Boolean,
+    ledgeWidth: Float,
+    petSize: Float,
+): ShelfPetState = ShelfPetState(
+    mode = PetMode.ENTER,
+    x = if (fromLeft) -petSize * (1f - PET_PEEK_SHARE) else ledgeWidth - petSize * PET_PEEK_SHARE,
+    facingRight = fromLeft,
+)
+
+/**
  * The shelf bear at one moment. It sits ([PetMode.IDLE]) for [idleForMs], stands up, walks to
  * the far end of the ledge and sits down again. A tap makes it sit and read for a few seconds.
+ * Once found it first enters ([PetMode.ENTER]): it peeks in from the screen edge and walks onto
+ * the ledge.
  * [x] is the bear's left edge in dp from the start of the ledge, [elapsedMs] the time spent in
  * the current mode, [step] the walk frame, [readAfterSitting] remembers a tap that came while
  * it was on its feet, and [rising] marks a seated pose that has just followed sitting down.
@@ -152,6 +188,23 @@ data class ShelfPetState(
                 )
                 else -> rest(here, random, rising = true)
             }
+            PetMode.ENTER -> if (time < PET_ANSWER_MS + PET_PEEK_MS) {
+                copy(elapsedMs = time)
+            } else {
+                // starts off the ledge, so x is not held to it until the bear arrives
+                val next = x + if (facingRight) PET_STEP_DP else -PET_STEP_DP
+                val arrived = if (facingRight) next >= minX else next <= high
+                if (arrived) {
+                    copy(
+                        mode = PetMode.SIT_DOWN,
+                        x = next.coerceIn(minX, high),
+                        elapsedMs = 0L,
+                        step = 0,
+                    )
+                } else {
+                    copy(x = next, elapsedMs = time, step = (step + 1) % WALK_FRAMES)
+                }
+            }
             PetMode.READ -> if (time >= PET_READ_MS) {
                 rest(here, random, rising = false)
             } else {
@@ -163,7 +216,7 @@ data class ShelfPetState(
     /**
      * The state after a tap on the bear: on its feet it sits down first and then reads, sitting
      * (or only just sinking to stand up) it reads at once, and a tap while it reads changes
-     * nothing.
+     * nothing. Tapped while it enters, it reads once it has walked in and sat down.
      */
     fun onTap(): ShelfPetState = when {
         mode == PetMode.STAND_UP && elapsedMs < PET_CROUCH_MS -> copy(
@@ -177,7 +230,7 @@ data class ShelfPetState(
             step = 0,
             readAfterSitting = true,
         )
-        mode == PetMode.SIT_DOWN -> copy(readAfterSitting = true)
+        mode == PetMode.SIT_DOWN || mode == PetMode.ENTER -> copy(readAfterSitting = true)
         mode == PetMode.IDLE -> copy(mode = PetMode.READ, elapsedMs = 0L, rising = false)
         else -> this
     }
@@ -200,6 +253,12 @@ data class ShelfPetState(
     }
 
     /**
+     * Whether the bear is drawn: not while it waits to answer a knock.
+     */
+    val shown: Boolean
+        get() = !(mode == PetMode.ENTER && elapsedMs < PET_ANSWER_MS)
+
+    /**
      * The drawing to show now. With [animate] off the bear holds the first idle or reading
      * frame.
      */
@@ -214,7 +273,8 @@ data class ShelfPetState(
             } else {
                 SIT[SIT_FRAMES - 1 - standIndex]
             }
-            PetMode.WALK -> WALK[step % WALK_FRAMES]
+            // entering holds the first walk frame while it peeks
+            PetMode.WALK, PetMode.ENTER -> WALK[step % WALK_FRAMES]
             PetMode.SIT_DOWN -> SIT[sitIndex]
             PetMode.READ -> if (animate) READ[loop(READ.size, PET_READ_FRAME_MS)] else READ.first()
         }

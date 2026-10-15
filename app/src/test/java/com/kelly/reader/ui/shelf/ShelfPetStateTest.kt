@@ -10,7 +10,8 @@ private const val MIN_X = 8f
 private const val MAX_X = 330f
 
 /**
- * Checks the shelf bear's rest, walk, sit and read cycle, its taps and its frames.
+ * Checks the shelf bear's rest, walk, sit and read cycle, its taps, its frames, and how it
+ * answers knocks on the ledge.
  */
 class ShelfPetStateTest {
 
@@ -233,5 +234,87 @@ class ShelfPetStateTest {
         repeat(50) { seed ->
             assertTrue(nextIdleMs(Random(seed)) in PET_MIN_IDLE_MS..PET_MAX_IDLE_MS)
         }
+    }
+
+    @Test
+    fun knocksInRow_quickKnocks_countUp() {
+        assertEquals(1, knocksInRow(count = 0, lastMs = 0L, nowMs = 1_000L))
+        assertEquals(2, knocksInRow(count = 1, lastMs = 1_000L, nowMs = 1_300L))
+        val third = knocksInRow(count = 2, lastMs = 1_300L, nowMs = 1_300L + PET_KNOCK_GAP_MS)
+        assertEquals(PET_KNOCKS, third)
+    }
+
+    @Test
+    fun knocksInRow_slowKnock_startsOver() {
+        assertEquals(1, knocksInRow(count = 2, lastMs = 1_000L, nowMs = 1_001L + PET_KNOCK_GAP_MS))
+    }
+
+    @Test
+    fun enteringPet_fromEitherSide_startsMostlyOffScreenFacingIn() {
+        val left = enteringPet(fromLeft = true, ledgeWidth = 392f, petSize = 78f)
+        assertEquals(PetMode.ENTER, left.mode)
+        assertTrue(left.facingRight)
+        assertEquals(-78f * (1f - PET_PEEK_SHARE), left.x, 0.001f)
+        val right = enteringPet(fromLeft = false, ledgeWidth = 392f, petSize = 78f)
+        assertFalse(right.facingRight)
+        assertEquals(392f - 78f * PET_PEEK_SHARE, right.x, 0.001f)
+    }
+
+    @Test
+    fun tick_entering_waitsThenPeeksStillThenWalksIn() {
+        val start = enteringPet(fromLeft = true, ledgeWidth = 392f, petSize = 78f)
+        assertFalse(start.shown)
+        val peeking = start.ticks(ticksFor(PET_ANSWER_MS))
+        assertTrue(peeking.shown)
+        assertEquals(start.x, peeking.x, 0.001f)
+        assertEquals(PetFrame.WALK_1, peeking.frame())
+        val held = start.ticks(ticksFor(PET_ANSWER_MS + PET_PEEK_MS) - 1)
+        assertEquals(start.x, held.x, 0.001f)
+        val walking = start.ticks(ticksFor(PET_ANSWER_MS + PET_PEEK_MS))
+        assertEquals(PetMode.ENTER, walking.mode)
+        assertTrue(walking.x > start.x)
+        assertEquals(PetFrame.WALK_2, walking.frame())
+    }
+
+    @Test
+    fun tick_enteringFromLeft_sitsDownOnceOnTheLedge() {
+        var state = enteringPet(fromLeft = true, ledgeWidth = 392f, petSize = 78f)
+        while (state.mode == PetMode.ENTER) state = state.tick(MIN_X, MAX_X, random)
+        assertEquals(PetMode.SIT_DOWN, state.mode)
+        assertEquals(MIN_X, state.x, PET_STEP_DP)
+        assertTrue(state.x >= MIN_X)
+    }
+
+    @Test
+    fun tick_enteringFromRight_walksLeftAndSits() {
+        var state = enteringPet(fromLeft = false, ledgeWidth = MAX_X + 86f, petSize = 78f)
+        var lastX = state.x
+        while (state.mode == PetMode.ENTER) {
+            state = state.tick(MIN_X, MAX_X, random)
+            assertTrue(state.x <= lastX)
+            lastX = state.x
+        }
+        assertEquals(PetMode.SIT_DOWN, state.mode)
+        assertTrue(state.x <= MAX_X)
+        assertEquals(MAX_X, state.x, PET_STEP_DP)
+    }
+
+    @Test
+    fun onTap_entering_readsAfterWalkingInAndSitting() {
+        var state = enteringPet(fromLeft = true, ledgeWidth = 392f, petSize = 78f)
+            .ticks(ticksFor(PET_ANSWER_MS + PET_PEEK_MS) + 2)
+            .onTap()
+        assertEquals(PetMode.ENTER, state.mode)
+        while (state.mode != PetMode.READ) state = state.tick(MIN_X, MAX_X, random)
+        assertEquals(MIN_X, state.x, PET_STEP_DP)
+    }
+
+    @Test
+    fun tick_enteringWithAnimationsOff_sitsAtTheNearEnd() {
+        val state = enteringPet(fromLeft = false, ledgeWidth = 392f, petSize = 78f)
+            .ticks(1, animate = false)
+        assertEquals(PetMode.IDLE, state.mode)
+        assertEquals(MAX_X, state.x, 0.001f)
+        assertTrue(state.shown)
     }
 }
