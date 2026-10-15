@@ -102,8 +102,8 @@ private val SNAP_BACK_SPRING = spring(
 private val NO_GLIDE = snap<IntOffset>()
 
 /**
- * The bookshelf: a title row with Edit and Add, a three column grid of covers, and the delete
- * bar at the bottom while books are selected.
+ * The bookshelf: a title row with Edit and Add, a three column grid of covers, the ledge with
+ * the shelf bear along the bottom, and the delete bar in its place while books are selected.
  */
 @Composable
 fun ShelfScreen(
@@ -137,6 +137,10 @@ fun ShelfScreen(
                 )
             }
         }
+        ShelfPet(
+            visible = !uiState.editing,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
         if (uiState.editing && uiState.selectedCount > 0) {
             DeleteBar(
                 selectedCount = uiState.selectedCount,
