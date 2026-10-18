@@ -342,7 +342,7 @@ private fun ScrollingPages(
         LazyColumn(state = listState, modifier = modifier) {
             items(count = count, key = { starts[it] }) { index ->
                 Text(
-                    text = Paginator.pageText(uiState.text, starts, index),
+                    text = Paginator.scrollPageText(uiState.text, starts, index),
                     style = pageStyle,
                     modifier = Modifier.fillMaxWidth(),
                 )

@@ -110,4 +110,18 @@ class PaginatorTest {
         assertEquals("abcd", Paginator.pageText("abcdefghij", starts, 0))
         assertEquals("ij", Paginator.pageText("abcdefghij", starts, 2))
     }
+
+    @Test
+    fun scrollPageText_pageEndsOnLineBreak_dropsOneLineBreak() {
+        assertEquals("ab", Paginator.scrollPageText("ab\ncd", intArrayOf(0, 3), 0))
+        assertEquals("ab", Paginator.scrollPageText("ab\r\ncd", intArrayOf(0, 4), 0))
+        // a blank line at the end of the page stays as one empty line
+        assertEquals("ab\r\n", Paginator.scrollPageText("ab\r\n\r\ncd", intArrayOf(0, 6), 0))
+    }
+
+    @Test
+    fun scrollPageText_pageEndsMidLine_isUnchanged() {
+        assertEquals("ab ", Paginator.scrollPageText("ab cd", intArrayOf(0, 3), 0))
+        assertEquals("cd", Paginator.scrollPageText("ab cd", intArrayOf(0, 3), 1))
+    }
 }
