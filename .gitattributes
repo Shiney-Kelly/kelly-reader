@@ -1,0 +1,5 @@
+# the unix start script keeps lf line endings
+/gradlew text eol=lf
+
+# windows scripts keep crlf line endings, which cmd expects
+*.bat text eol=crlf
