@@ -130,12 +130,15 @@ class ReaderViewModel(
     }
 
     /**
-     * In scroll mode the screen reports the page now at the top; it becomes the position.
+     * In scroll mode the screen reports the page now at the top; its start becomes the
+     * position. The page that already holds the position leaves it as it is, so a spot inside
+     * a page, as after the pages change, is not pulled back to the page start.
      */
     fun moveToPage(index: Int) {
-        val starts = _uiState.value.pageStarts ?: return
+        val state = _uiState.value
+        val starts = state.pageStarts ?: return
         if (index !in starts.indices) return
-        if (starts[index] == _uiState.value.offset) return
+        if (index == state.pageIndex) return
         moveTo(starts[index])
     }
 

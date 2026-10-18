@@ -221,6 +221,49 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun moveToPage_pageHoldingOffset_keepsExactOffset() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.moveToPage(1)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, viewModel.uiState.value.offset)
+        viewModel.moveToPage(2)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(8, viewModel.uiState.value.offset)
+    }
+
+    @Test
+    fun setPageMeasurer_keyChangedAndBack_offsetDoesNotDrift() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("four", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.setPageMeasurer("three", fixed(3))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, viewModel.uiState.value.offset)
+        assertEquals("def", viewModel.uiState.value.pageText)
+
+        viewModel.setPageMeasurer("four", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertEquals(5, state.offset)
+        assertEquals("efgh", state.pageText)
+        assertEquals(5, repository.books.value.single().lastOffset)
+    }
+
+    @Test
+    fun setPageMeasurer_newKeyMidPage_savesNaturalPagesToDisk() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("three", fixed(3))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), pageCache.load("b1", "three"))
+        assertEquals(1, viewModel.uiState.value.pageIndex)
+    }
+
+    @Test
     fun setReadingMode_goesToRepository() = runTest(dispatcher) {
         val viewModel = viewModel()
         viewModel.setReadingMode(ReadingMode.SCROLL)

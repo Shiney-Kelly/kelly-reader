@@ -5,8 +5,9 @@ import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.formatPercent
 
 /**
- * What the reader shows. [offset] is the char index of the current page start and the one
- * source of truth for the position; the page index follows from it and [pageStarts].
+ * What the reader shows. [offset] is the char index of the reading spot and the one source of
+ * truth for the position: a page start, or after the pages change, a char inside the page that
+ * holds it. The page index follows from it and [pageStarts].
  * [pageStarts] is null until the first page has been measured, and [paginationDone] turns
  * true once every page is known. [isRtl] says the text reads right to left.
  */
