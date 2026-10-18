@@ -18,8 +18,9 @@ import com.kelly.reader.data.SettingsRepository
 const val SHUFFLE_MS = 1_800L
 
 /**
- * State for the bookshelf: the books from the repository plus the edit mode, the selection and
- * the shuffle after a shake. [random] picks the shuffled order.
+ * State for the bookshelf: the books from the repository plus the edit mode, the selection, the
+ * shuffle after a shake and whether the shelf bear has been found. [random] picks the shuffled
+ * order.
  */
 class ShelfViewModel(
     private val bookRepository: BookRepository,
@@ -42,6 +43,11 @@ class ShelfViewModel(
                         editing = state.editing && books.isNotEmpty(),
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.shelfPetFound.collect { found ->
+                _uiState.update { it.copy(petFound = found) }
             }
         }
     }
@@ -79,6 +85,14 @@ class ShelfViewModel(
             bookRepository.deleteBooks(ids)
             _uiState.update { it.copy(selected = emptySet()) }
         }
+    }
+
+    /**
+     * Shows the shelf bear from now on, after someone knocked on its ledge.
+     */
+    fun onPetFound() {
+        _uiState.update { it.copy(petFound = true) }
+        viewModelScope.launch { settingsRepository.setShelfPetFound(true) }
     }
 
     /**

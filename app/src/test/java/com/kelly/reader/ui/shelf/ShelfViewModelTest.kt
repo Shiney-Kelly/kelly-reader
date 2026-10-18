@@ -21,7 +21,7 @@ import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 
 /**
- * Checks edit mode, selection, deleting and the shake shuffle on the shelf.
+ * Checks edit mode, selection, deleting, the shake shuffle and finding the bear on the shelf.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShelfViewModelTest {
@@ -193,5 +193,27 @@ class ShelfViewModelTest {
         repository.books.update { it + Book("b4", "Four", "4.txt", 1, 1, 4) }
         dispatcher.scheduler.runCurrent()
         assertEquals(shuffled + "b4", viewModel.uiState.value.shownBooks?.map { it.id })
+    }
+
+    @Test
+    fun uiState_bearNeverFound_isHidden() = runTest(dispatcher) {
+        assertFalse(viewModel().uiState.value.petFound)
+    }
+
+    @Test
+    fun uiState_bearFoundBefore_isShown() = runTest(dispatcher) {
+        val viewModel = viewModel(settingsRepository = FakeSettingsRepository(shelfPetFound = true))
+        assertTrue(viewModel.uiState.value.petFound)
+    }
+
+    @Test
+    fun onPetFound_bearHidden_showsAndSavesIt() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository()
+        val viewModel = viewModel(settingsRepository = settings)
+        viewModel.onPetFound()
+        assertTrue(viewModel.uiState.value.petFound)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(settings.petFound.value)
+        assertTrue(viewModel.uiState.value.petFound)
     }
 }

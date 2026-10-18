@@ -5,13 +5,15 @@ import com.kelly.reader.domain.Book
 /**
  * What the shelf shows. [books] is null until the database has answered, so the empty state
  * does not flash before the first load. [shuffledIds] holds the mixed up order of the covers
- * for a moment after a shake, and is null the rest of the time.
+ * for a moment after a shake, and is null the rest of the time. [petFound] tells whether someone
+ * has found the shelf bear; until then only its ledge shows.
  */
 data class ShelfUiState(
     val books: List<Book>? = null,
     val editing: Boolean = false,
     val selected: Set<String> = emptySet(),
     val shuffledIds: List<String>? = null,
+    val petFound: Boolean = false,
 ) {
 
     val isEmpty: Boolean
