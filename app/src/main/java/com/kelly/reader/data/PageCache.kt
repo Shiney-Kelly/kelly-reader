@@ -9,7 +9,7 @@ import java.io.File
 import java.io.IOException
 
 // bump when the page format or the measuring changes, so old files are ignored
-private const val FORMAT_VERSION = 1
+private const val FORMAT_VERSION = 2
 
 /**
  * Page start offsets saved on disk, one file per book and settings key under [dir], so a book

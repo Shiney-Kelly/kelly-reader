@@ -6,6 +6,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import java.io.DataOutputStream
 import java.io.File
 import java.nio.file.Files
 
@@ -58,6 +59,19 @@ class PageCacheTest {
         assertNull(cache.load("b1", "a"))
         assertNull(cache.load("b1", "b"))
         assertArrayEquals(intArrayOf(0), cache.load("b2", "a"))
+    }
+
+    @Test
+    fun load_olderFormatVersion_returnsNull() = runTest {
+        // a version 1 file, as saved while a page could still be cut short at the resume point
+        val file = File(File(dir, "b1"), "k.pages")
+        file.parentFile?.mkdirs()
+        DataOutputStream(file.outputStream()).use { output ->
+            output.writeInt(1)
+            output.writeInt(3)
+            intArrayOf(0, 4, 5).forEach(output::writeInt)
+        }
+        assertNull(cache.load("b1", "k"))
     }
 
     @Test
