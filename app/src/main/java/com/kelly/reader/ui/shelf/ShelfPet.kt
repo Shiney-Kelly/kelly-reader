@@ -9,6 +9,9 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,10 +45,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -67,6 +74,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.kelly.reader.R
 import com.kelly.reader.ui.theme.AppTheme
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
 import kotlinx.coroutines.delay
 
@@ -103,6 +112,17 @@ private val PET_LIFT = PAW_LINE - PET_FOOT_GAP
 // higher, so they sit lower than the standing ones
 private val SEAT_SINK = canvas(8)
 private val HALF_SEAT_SINK = canvas(4)
+
+// paw prints sit on the ledge where the standing paws would, above the system's home gesture,
+// the near and far feet 1.5dp apart; each is a pad with four toes ahead of it, seen from above
+// at a slant, so squashed to 60% of its depth
+private val PAW_SWAY = 1.5.dp
+private val PAW_PAD_LENGTH = 3.2.dp
+private val PAW_PAD_WIDTH = 4.6.dp
+private val PAW_TOE_RADIUS = 0.9.dp
+private val PAW_TOE_REACH = 3.4.dp
+private const val PAW_SLANT = 0.6f
+private val PAW_TOE_ANGLES = listOf(-60.0, -20.0, 20.0, 60.0).map(Math::toRadians)
 
 // a soft oval under the bear grounds it on the ledge
 private val PET_SHADOW_WIDTH = canvas(160)
@@ -168,6 +188,9 @@ fun ShelfPet(
     var knocks by remember { mutableIntStateOf(0) }
     var lastKnockMs by remember { mutableLongStateOf(0L) }
     val onFoundNow by rememberUpdatedState(onFound)
+    // time into the current paw print trail, below zero while there is none
+    val trail = remember { Animatable(-1f) }
+    var trailFromLeft by remember { mutableStateOf(true) }
     if (!visible) return
 
     val resources = LocalResources.current
@@ -194,6 +217,7 @@ fun ShelfPet(
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val widthPx = constraints.maxWidth
         val maxX by rememberUpdatedState((maxWidth - PET_MARGIN - PET_SIZE).value)
+        val ledgeWidth by rememberUpdatedState(maxWidth.value)
         LaunchedEffect(lifecycleOwner, found) {
             // a hidden bear stays where it is until a knock calls it
             if (!found) return@LaunchedEffect
@@ -206,9 +230,46 @@ fun ShelfPet(
             }
         }
 
+        LaunchedEffect(lifecycleOwner, found) {
+            // only a hidden bear leaves paw prints, and none with animations off
+            if (found) return@LaunchedEffect
+            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                trail.snapTo(-1f)
+                if (!ValueAnimator.areAnimatorsEnabled()) return@repeatOnLifecycle
+                var wait = Random.nextLong(PAW_FIRST_MIN_MS, PAW_FIRST_MAX_MS + 1)
+                while (true) {
+                    delay(wait)
+                    val trailMs = pawTrailMs(pawCount(ledgeWidth)).toFloat()
+                    trailFromLeft = Random.nextBoolean()
+                    trail.snapTo(0f)
+                    trail.animateTo(
+                        targetValue = trailMs,
+                        animationSpec = tween(
+                            durationMillis = trailMs.toInt(),
+                            easing = LinearEasing,
+                        ),
+                    )
+                    trail.snapTo(-1f)
+                    wait = Random.nextLong(PAW_NEXT_MIN_MS, PAW_NEXT_MAX_MS + 1)
+                }
+            }
+        }
+
         // the ledge runs on under the navigation bar, so the bear never stands on the bar
         val shade = Brush.verticalGradient(listOf(Color.Transparent, colors.ledgeShade))
-        Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .drawWithContent {
+                    drawContent()
+                    val elapsed = trail.value
+                    if (elapsed >= 0f) {
+                        val y = size.height - (navigationBar + PAW_LINE).toPx()
+                        drawPawTrail(elapsed, y, trailFromLeft, colors.petShadow)
+                    }
+                },
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -331,6 +392,53 @@ fun ShelfPet(
                     .clearAndSetSemantics {},
             )
         }
+    }
+}
+
+/**
+ * Draws the paw prints of a trail [elapsedMs] in, walking along the line [y] from the left edge
+ * when [fromLeft], else from the right, each one as strong as [pawAlpha] says.
+ */
+private fun DrawScope.drawPawTrail(
+    elapsedMs: Float,
+    y: Float,
+    fromLeft: Boolean,
+    color: Color,
+) {
+    val gap = PAW_GAP_DP.dp.toPx()
+    val sway = PAW_SWAY.toPx()
+    for (index in 0 until pawCount(size.width.toDp().value)) {
+        val alpha = pawAlpha(elapsedMs, index)
+        if (alpha <= 0f) continue
+        val along = (index + 0.5f) * gap
+        val x = if (fromLeft) along else size.width - along
+        // near and far feet take turns
+        val center = Offset(x, y + if (index % 2 == 0) sway else -sway)
+        val faded = color.copy(alpha = color.alpha * alpha)
+        drawPawPrint(center, facingRight = fromLeft, color = faded)
+    }
+}
+
+/**
+ * Draws one paw print around [center]: a pad with four toes ahead of it, pointing right when
+ * [facingRight].
+ */
+private fun DrawScope.drawPawPrint(center: Offset, facingRight: Boolean, color: Color) {
+    val padLength = PAW_PAD_LENGTH.toPx()
+    val padDepth = PAW_PAD_WIDTH.toPx() * PAW_SLANT
+    drawOval(
+        color = color,
+        topLeft = Offset(center.x - padLength / 2, center.y - padDepth / 2),
+        size = Size(padLength, padDepth),
+    )
+    val forward = if (facingRight) 1f else -1f
+    val reach = PAW_TOE_REACH.toPx()
+    for (angle in PAW_TOE_ANGLES) {
+        val toe = Offset(
+            center.x + forward * reach * cos(angle).toFloat(),
+            center.y + reach * PAW_SLANT * sin(angle).toFloat(),
+        )
+        drawCircle(color = color, radius = PAW_TOE_RADIUS.toPx(), center = toe)
     }
 }
 

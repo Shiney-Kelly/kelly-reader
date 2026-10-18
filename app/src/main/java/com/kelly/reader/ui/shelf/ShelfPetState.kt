@@ -1,5 +1,6 @@
 package com.kelly.reader.ui.shelf
 
+import kotlin.math.ceil
 import kotlin.random.Random
 
 // ----- timing -----
@@ -39,6 +40,20 @@ const val PET_KNOCK_GAP_MS = 500L
 const val PET_ANSWER_MS = 600L
 const val PET_PEEK_MS = 1_200L
 const val PET_PEEK_SHARE = 0.45f
+
+// ----- paw print hint -----
+
+// while the bear is hidden, now and then a trail of faint paw prints crosses the ledge: a print
+// every 16dp, each one 350 ms after the last, fading in quickly and out over 1.8 s; the first
+// trail comes 6 to 12 s after the shelf shows, the next ones 30 to 60 s apart
+const val PAW_GAP_DP = 16f
+const val PAW_STEP_MS = 350L
+const val PAW_RISE_MS = 120L
+const val PAW_FADE_MS = 1_800L
+const val PAW_FIRST_MIN_MS = 6_000L
+const val PAW_FIRST_MAX_MS = 12_000L
+const val PAW_NEXT_MIN_MS = 30_000L
+const val PAW_NEXT_MAX_MS = 60_000L
 
 private const val WALK_FRAMES = 8
 private const val SIT_FRAMES = 3
@@ -88,6 +103,29 @@ fun nextIdleMs(random: Random): Long = random.nextLong(PET_MIN_IDLE_MS, PET_MAX_
  */
 fun knocksInRow(count: Int, lastMs: Long, nowMs: Long): Int =
     if (count > 0 && nowMs - lastMs in 0..PET_KNOCK_GAP_MS) count + 1 else 1
+
+/**
+ * How many paw prints it takes to cross a ledge [ledgeWidth] dp wide.
+ */
+fun pawCount(ledgeWidth: Float): Int = ceil(ledgeWidth / PAW_GAP_DP).toInt().coerceAtLeast(1)
+
+/**
+ * How long a trail of [count] paw prints lasts, until its last print has faded out.
+ */
+fun pawTrailMs(count: Int): Long = (count - 1) * PAW_STEP_MS + PAW_RISE_MS + PAW_FADE_MS
+
+/**
+ * How strongly paw print [index] of a trail shows [elapsedMs] into it, from 0 to 1: nothing
+ * before its turn, then a quick fade in and a slow fade out.
+ */
+fun pawAlpha(elapsedMs: Float, index: Int): Float {
+    val since = elapsedMs - index * PAW_STEP_MS
+    return when {
+        since <= 0f -> 0f
+        since < PAW_RISE_MS -> since / PAW_RISE_MS
+        else -> (1f - (since - PAW_RISE_MS) / PAW_FADE_MS).coerceAtLeast(0f)
+    }
+}
 
 /**
  * The bear answering a knock: about to peek in from the left edge when [fromLeft], else from the

@@ -317,4 +317,28 @@ class ShelfPetStateTest {
         assertEquals(MAX_X, state.x, 0.001f)
         assertTrue(state.shown)
     }
+
+    @Test
+    fun pawCount_phoneLedge_coversTheWidth() {
+        assertEquals(25, pawCount(392f))
+        assertTrue(pawCount(392f) * PAW_GAP_DP >= 392f)
+        assertEquals(1, pawCount(0f))
+    }
+
+    @Test
+    fun pawAlpha_overOnePrint_waitsRisesThenFades() {
+        assertEquals(0f, pawAlpha(elapsedMs = 2f * PAW_STEP_MS, index = 2), 0.001f)
+        val risen = 2f * PAW_STEP_MS + PAW_RISE_MS
+        assertEquals(1f, pawAlpha(elapsedMs = risen, index = 2), 0.001f)
+        assertEquals(0.5f, pawAlpha(elapsedMs = risen + PAW_FADE_MS / 2f, index = 2), 0.001f)
+        assertEquals(0f, pawAlpha(elapsedMs = risen + PAW_FADE_MS, index = 2), 0.001f)
+    }
+
+    @Test
+    fun pawTrailMs_atTheEnd_lastPrintHasFaded() {
+        val count = pawCount(392f)
+        val end = pawTrailMs(count).toFloat()
+        assertEquals(0f, pawAlpha(elapsedMs = end, index = count - 1), 0.001f)
+        assertTrue(pawAlpha(elapsedMs = end - 100f, index = count - 1) > 0f)
+    }
 }
