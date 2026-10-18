@@ -21,8 +21,8 @@ android {
         applicationId = "com.kelly.reader"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.9.1"
+        versionCode = 4
+        versionName = "0.14.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
