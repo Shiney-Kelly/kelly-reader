@@ -53,12 +53,31 @@ class PaginatorTest {
     }
 
     @Test
-    fun paginate_withAnchor_emitsPagesFromAnchorFirstThenAll() = runTest {
+    fun paginate_withAnchor_emitsPagesFromAnchorFirstThenNaturalPages() = runTest {
         val emissions = Paginator.paginate("abcdefghij", fixed(4), dispatcher, anchor = 5).toList()
         assertArrayEquals(intArrayOf(5), emissions[0])
         assertArrayEquals(intArrayOf(5, 9), emissions[1])
-        // the page from 4 would run to 8 and cross the anchor, so it is cut at 5
-        assertArrayEquals(intArrayOf(0, 4, 5, 9), emissions.last())
+        // no page is cut at the anchor: the page from 4 runs to 8 and holds it
+        assertArrayEquals(intArrayOf(0, 4, 8), emissions.last())
+    }
+
+    @Test
+    fun paginate_withAnchor_anchorLandsInsideItsPage() = runTest {
+        val text = "abcdefghij"
+        val starts = Paginator.paginate(text, fixed(4), dispatcher, anchor = 5).last()
+        val index = Paginator.pageIndexFor(starts, 5)
+        assertEquals(1, index)
+        assertEquals("efgh", Paginator.pageText(text, starts, index))
+    }
+
+    @Test
+    fun paginate_anyAnchor_endsWithPlainPaging() = runTest {
+        val text = "abcdefghijklmnopq"
+        val plain = Paginator.paginate(text, fixed(4), dispatcher).last()
+        for (anchor in 1 until text.length) {
+            val starts = Paginator.paginate(text, fixed(4), dispatcher, anchor).last()
+            assertArrayEquals("anchor $anchor", plain, starts)
+        }
     }
 
     @Test

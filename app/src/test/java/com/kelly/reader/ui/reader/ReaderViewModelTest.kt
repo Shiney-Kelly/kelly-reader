@@ -127,15 +127,16 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun init_resumeOffScreenBoundary_keepsPositionWithShortPageBefore() = runTest(dispatcher) {
+    fun init_resumeOffBoundary_keepsPositionInsideFullPage() = runTest(dispatcher) {
         repository.books.value = listOf(book.copy(lastOffset = 9))
         val viewModel = viewModel()
         viewModel.setPageMeasurer("k", fixed(4))
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value
-        assertArrayEquals(intArrayOf(0, 4, 8, 9), state.pageStarts)
+        assertArrayEquals(intArrayOf(0, 4, 8), state.pageStarts)
         assertEquals(9, state.offset)
-        assertEquals("j", state.pageText)
+        assertEquals(2, state.pageIndex)
+        assertEquals("ij", state.pageText)
         assertTrue(state.pageNumberKnown)
     }
 
@@ -148,14 +149,14 @@ class ReaderViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(4, viewModel.uiState.value.offset)
 
-        // the new pages are anchored at the current offset, so the page on screen stays put
+        // the new pages break naturally, so the offset now sits inside the second page
         viewModel.setPageMeasurer("three", fixed(3))
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value
-        assertArrayEquals(intArrayOf(0, 3, 4, 7), state.pageStarts)
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), state.pageStarts)
         assertEquals(4, state.offset)
-        assertEquals(2, state.pageIndex)
-        assertEquals("efg", state.pageText)
+        assertEquals(1, state.pageIndex)
+        assertEquals("def", state.pageText)
     }
 
     @Test

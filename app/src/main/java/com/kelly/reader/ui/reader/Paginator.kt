@@ -28,8 +28,9 @@ object Paginator {
      * every page. The last emission holds every page. Empty text is one empty page.
      *
      * With an [anchor] inside the text, the pages from the anchor onward come first, so the
-     * page the reader is on shows at once; then the pages before it are filled in from the
-     * start and emitted once, with the page that would cross the anchor cut at the anchor.
+     * page the reader is on shows at once. Then the whole text is paged again from the start
+     * with natural breaks only, and emitted once: the anchor is not kept as a page start, so
+     * no page before it ends early, and it lands inside the page that now holds it.
      */
     fun paginate(
         text: String,
@@ -47,13 +48,15 @@ object Paginator {
         } while (start < text.length)
 
         if (from == 0) return@flow
-        val before = ArrayList<Int>()
+        // all pages again: with a fixed line height every page holds the same number of lines,
+        // so the pages counted from the anchor stay shifted from the natural ones to the end
+        val all = ArrayList<Int>()
         start = 0
-        while (start < from) {
-            before += start
+        do {
+            all += start
             start += measurer.charsThatFit(text, start).coerceAtLeast(1)
-        }
-        emit((before + after).toIntArray())
+        } while (start < text.length)
+        emit(all.toIntArray())
     }.flowOn(dispatcher)
 
     /**
