@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.style.TextDirection
@@ -321,6 +322,12 @@ private fun ScrollingPages(
     if (count <= 0) return
     val topIndex = uiState.pageIndex.coerceIn(0, count - 1)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = topIndex)
+    // the pages sit one under another, so each keeps the room its line height gives above its
+    // first line and below its last; trimmed, as a page on its own is, the lines where two
+    // pages meet would come closer than the rest
+    val pageStyle = remember(style) {
+        style.copy(lineHeightStyle = LineHeightStyle.Default.copy(trim = LineHeightStyle.Trim.None))
+    }
 
     LaunchedEffect(starts) {
         if (listState.firstVisibleItemIndex != topIndex) listState.scrollToItem(topIndex)
@@ -336,7 +343,7 @@ private fun ScrollingPages(
             items(count = count, key = { starts[it] }) { index ->
                 Text(
                     text = Paginator.pageText(uiState.text, starts, index),
-                    style = style,
+                    style = pageStyle,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
