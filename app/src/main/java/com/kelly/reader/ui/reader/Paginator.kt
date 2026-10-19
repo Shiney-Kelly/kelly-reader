@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
+// enough of the paragraph after a page to finish laying out its last line
+const val PAGE_TAIL_MAX = 1_000
+
 /**
  * Knows the page size and text style, and answers how much text fits on one page.
  */
@@ -75,6 +78,25 @@ object Paginator {
         val start = pageStarts[index]
         val end = if (index + 1 < pageStarts.size) pageStarts[index + 1] else text.length
         return text.substring(start, end)
+    }
+
+    /**
+     * The text to lay out for page [index]: when the page ends inside a paragraph, the page and
+     * then the rest of that paragraph, at most [maxTail] chars of it, so the page's last line is
+     * laid out as a line inside the paragraph, justified like the others, not as its end. Only
+     * the page's own lines are to be shown. A page that ends a paragraph or the book is as is.
+     */
+    fun pageTextWithTail(
+        text: String,
+        pageStarts: IntArray,
+        index: Int,
+        maxTail: Int = PAGE_TAIL_MAX,
+    ): String {
+        val start = pageStarts[index]
+        val end = if (index + 1 < pageStarts.size) pageStarts[index + 1] else text.length
+        if (end >= text.length || text[end - 1] == '\n') return text.substring(start, end)
+        val paragraphEnd = text.indexOf('\n', end).let { if (it < 0) text.length else it }
+        return text.substring(start, minOf(paragraphEnd, end + maxTail))
     }
 
     /**

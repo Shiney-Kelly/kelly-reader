@@ -112,6 +112,27 @@ class PaginatorTest {
     }
 
     @Test
+    fun pageTextWithTail_pageEndsInsideParagraph_addsRestOfParagraph() {
+        val text = "ab cd ef\ngh"
+        assertEquals("ab cd ef", Paginator.pageTextWithTail(text, intArrayOf(0, 3, 9), 0))
+        assertEquals("cd ef\n", Paginator.pageTextWithTail(text, intArrayOf(0, 3, 9), 1))
+    }
+
+    @Test
+    fun pageTextWithTail_pageEndsParagraphOrBook_isThePage() {
+        assertEquals("ab\n", Paginator.pageTextWithTail("ab\ncd", intArrayOf(0, 3), 0))
+        assertEquals("cd", Paginator.pageTextWithTail("ab\ncd", intArrayOf(0, 3), 1))
+    }
+
+    @Test
+    fun pageTextWithTail_longParagraph_tailIsCapped() {
+        val text = "ab cdefghij"
+        assertEquals("ab cd", Paginator.pageTextWithTail(text, intArrayOf(0, 3), 0, maxTail = 2))
+        // the paragraph runs to the end of the book
+        assertEquals("ab cdefghij", Paginator.pageTextWithTail(text, intArrayOf(0, 3), 0))
+    }
+
+    @Test
     fun scrollPageText_pageEndsOnLineBreak_dropsOneLineBreak() {
         assertEquals("ab", Paginator.scrollPageText("ab\ncd", intArrayOf(0, 3), 0))
         assertEquals("ab", Paginator.scrollPageText("ab\r\ncd", intArrayOf(0, 4), 0))
