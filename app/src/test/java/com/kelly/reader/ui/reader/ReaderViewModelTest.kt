@@ -127,35 +127,90 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun init_resumeOffScreenBoundary_keepsPositionWithShortPageBefore() = runTest(dispatcher) {
+    fun init_resumeOffBoundary_keepsPositionInsideFullPage() = runTest(dispatcher) {
         repository.books.value = listOf(book.copy(lastOffset = 9))
         val viewModel = viewModel()
         viewModel.setPageMeasurer("k", fixed(4))
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value
-        assertArrayEquals(intArrayOf(0, 4, 8, 9), state.pageStarts)
+        assertArrayEquals(intArrayOf(0, 4, 8), state.pageStarts)
         assertEquals(9, state.offset)
-        assertEquals("j", state.pageText)
+        assertEquals(2, state.pageIndex)
+        assertEquals("ij", state.pageText)
         assertTrue(state.pageNumberKnown)
     }
 
-    @Test
-    fun setPageMeasurer_newKey_repaginatesKeepingOffset() = runTest(dispatcher) {
+    private fun onSecondPageWithThreePerPage(): ReaderViewModel {
         val viewModel = viewModel()
         viewModel.setPageMeasurer("four", fixed(4))
         dispatcher.scheduler.advanceUntilIdle()
         viewModel.nextPage()
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(4, viewModel.uiState.value.offset)
+        viewModel.setPageMeasurer("three", fixed(3))
+        dispatcher.scheduler.advanceUntilIdle()
+        return viewModel
+    }
 
-        // the new pages are anchored at the current offset, so the page on screen stays put
+    @Test
+    fun setPageMeasurer_newKeyMidBook_holdsNewPagesUntilNextTurn() = runTest(dispatcher) {
+        val viewModel = onSecondPageWithThreePerPage()
+        // the pages from the spot show, the ones from the start wait
+        var state = viewModel.uiState.value
+        assertArrayEquals(intArrayOf(4, 7), state.pageStarts)
+        assertEquals(4, state.offset)
+        assertEquals("efg", state.pageText)
+        assertFalse(state.paginationDone)
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), pageCache.load("b1", "three"))
+
+        // the next page brings them in, at the first char not shown yet
+        viewModel.nextPage()
+        dispatcher.scheduler.advanceUntilIdle()
+        state = viewModel.uiState.value
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), state.pageStarts)
+        assertTrue(state.paginationDone)
+        assertEquals(7, state.offset)
+        assertEquals("ghi", state.pageText)
+        assertEquals(7, repository.books.value.single().lastOffset)
+    }
+
+    @Test
+    fun previousPage_newPagesWaiting_showsPageBeforeSpot() = runTest(dispatcher) {
+        val viewModel = onSecondPageWithThreePerPage()
+        viewModel.previousPage()
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), state.pageStarts)
+        assertEquals(3, state.offset)
+        assertEquals("def", state.pageText)
+    }
+
+    @Test
+    fun setPageMeasurer_newKeyOnLastPage_showsNewPagesAtOnce() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 8))
+        val viewModel = viewModel()
         viewModel.setPageMeasurer("three", fixed(3))
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value
-        assertArrayEquals(intArrayOf(0, 3, 4, 7), state.pageStarts)
-        assertEquals(4, state.offset)
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), state.pageStarts)
+        assertTrue(state.paginationDone)
+        assertEquals(8, state.offset)
+        assertEquals("ghi", state.pageText)
+    }
+
+    @Test
+    fun moveToPage_newPagesWaiting_showsThemAtNewTopPage() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertArrayEquals(intArrayOf(5, 9), viewModel.uiState.value.pageStarts)
+
+        viewModel.moveToPage(1)
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertArrayEquals(intArrayOf(0, 4, 8), state.pageStarts)
+        assertEquals(9, state.offset)
         assertEquals(2, state.pageIndex)
-        assertEquals("efg", state.pageText)
     }
 
     @Test
@@ -217,6 +272,51 @@ class ReaderViewModelTest {
         viewModel.moveToPage(7) // out of range, ignored
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(8, viewModel.uiState.value.offset)
+    }
+
+    @Test
+    fun moveToPage_pageHoldingOffset_keepsExactOffset() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        pageCache.save("b1", "k", intArrayOf(0, 4, 8)) // known pages show at once
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.moveToPage(1)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, viewModel.uiState.value.offset)
+        viewModel.moveToPage(2)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(8, viewModel.uiState.value.offset)
+    }
+
+    @Test
+    fun setPageMeasurer_keyChangedAndBack_offsetDoesNotDrift() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("four", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.setPageMeasurer("three", fixed(3))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, viewModel.uiState.value.offset)
+        assertEquals("fgh", viewModel.uiState.value.pageText) // from the spot, the rest waits
+
+        // four chars a page is known by now, so those pages show at once
+        viewModel.setPageMeasurer("four", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertEquals(5, state.offset)
+        assertEquals("efgh", state.pageText)
+        assertEquals(5, repository.books.value.single().lastOffset)
+    }
+
+    @Test
+    fun setPageMeasurer_newKeyMidPage_savesNaturalPagesToDisk() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5))
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("three", fixed(3))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertArrayEquals(intArrayOf(0, 3, 6, 9), pageCache.load("b1", "three"))
+        assertArrayEquals(intArrayOf(5, 8), viewModel.uiState.value.pageStarts)
     }
 
     @Test
