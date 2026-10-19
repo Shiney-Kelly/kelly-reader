@@ -114,7 +114,8 @@ class PaginatorTest {
     @Test
     fun pageTextForLayout_pageEndsOnSpaceInsideParagraph_addsRun() {
         val text = "ab cd ef\ngh"
-        assertEquals("ab " + NO_BREAK_RUN, Paginator.pageTextForLayout(text, intArrayOf(0, 3, 9), 0))
+        val page = Paginator.pageTextForLayout(text, intArrayOf(0, 3, 9), 0)
+        assertEquals("ab " + NO_BREAK_RUN, page)
         assertEquals("cd ef\n", Paginator.pageTextForLayout(text, intArrayOf(0, 3, 9), 1))
     }
 
