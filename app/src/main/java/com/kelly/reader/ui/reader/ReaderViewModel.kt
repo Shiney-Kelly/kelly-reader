@@ -8,7 +8,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Clock
@@ -43,6 +42,10 @@ class ReaderViewModel(
     private var measurerKey: String? = null
     private var measurer: PageMeasurer? = null
     private val cache = HashMap<String, IntArray>()
+
+    // pages measured from the start after a change, held back until the next page turn so the
+    // text being read does not move under the reader
+    private var waitingStarts: IntArray? = null
 
     init {
         viewModelScope.launch {
@@ -85,6 +88,7 @@ class ReaderViewModel(
         val text = _uiState.value.text
         if (_uiState.value.book == null) return
         paginationJob?.cancel()
+        waitingStarts = null
         cache[key]?.let { starts ->
             _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
             return
@@ -98,13 +102,23 @@ class ReaderViewModel(
             }
             var last: IntArray? = null
             val anchor = _uiState.value.offset
-            Paginator.paginate(text, measurer, paginationDispatcher, anchor).conflate().collect { starts ->
+            val fromSpot = anchor in 1 until text.length
+            // every result in order, so the pages from the reading spot are complete before
+            // the pages from the start of the book arrive after them
+            Paginator.paginate(text, measurer, paginationDispatcher, anchor).collect { starts ->
                 last = starts
-                _uiState.update { it.copy(pageStarts = starts) }
+                if (!fromSpot || starts[0] != 0) _uiState.update { it.copy(pageStarts = starts) }
             }
             last?.let { starts ->
                 pageCache.save(bookId, key, starts)
-                finishPagination(key, starts)
+                cache[key] = starts
+                // in a book measured from the reading spot, the pages from the start would move
+                // the text being read, so they wait for the next page turn unless there is none
+                if (fromSpot && _uiState.value.hasNextPage) {
+                    waitingStarts = starts
+                } else {
+                    finishPagination(key, starts)
+                }
             }
         }
     }
@@ -115,14 +129,30 @@ class ReaderViewModel(
         saveProgress()
     }
 
+    /**
+     * Goes to the next page. Pages waiting since a change come in here: the position moves to
+     * the first char not shown yet, and the page that holds it shows, so no text is skipped.
+     */
     fun nextPage() {
         val state = _uiState.value
         val starts = state.pageStarts ?: return
         if (!state.hasNextPage) return
-        moveTo(starts[state.pageIndex + 1])
+        val next = starts[state.pageIndex + 1]
+        showWaitingPages()
+        moveTo(next)
     }
 
+    /**
+     * Goes to the previous page. Pages waiting since a change come in here, and the page that
+     * holds the char just before the position shows, so no text is skipped.
+     */
     fun previousPage() {
+        if (showWaitingPages()) {
+            val state = _uiState.value
+            val starts = state.pageStarts ?: return
+            if (state.offset > 0) moveTo(starts[Paginator.pageIndexFor(starts, state.offset - 1)])
+            return
+        }
         val state = _uiState.value
         val starts = state.pageStarts ?: return
         if (!state.hasPreviousPage) return
@@ -132,14 +162,27 @@ class ReaderViewModel(
     /**
      * In scroll mode the screen reports the page now at the top; its start becomes the
      * position. The page that already holds the position leaves it as it is, so a spot inside
-     * a page, as after the pages change, is not pulled back to the page start.
+     * a page, as after the pages change, is not pulled back to the page start. Pages waiting
+     * since a change come in when the top page changes.
      */
     fun moveToPage(index: Int) {
         val state = _uiState.value
         val starts = state.pageStarts ?: return
         if (index !in starts.indices) return
         if (index == state.pageIndex) return
-        moveTo(starts[index])
+        val target = starts[index]
+        showWaitingPages()
+        moveTo(target)
+    }
+
+    /**
+     * Shows the pages held back since the last change, if any, and says whether there were.
+     */
+    private fun showWaitingPages(): Boolean {
+        val starts = waitingStarts ?: return false
+        waitingStarts = null
+        _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
+        return true
     }
 
     private fun moveTo(offset: Int) {
