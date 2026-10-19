@@ -9,8 +9,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
-// enough of the paragraph after a page to finish laying out its last line
-const val PAGE_TAIL_MAX = 1_000
+// laid out after a page that ends inside a paragraph, on lines that are not shown: no-break
+// spaces wider than any line, so the page's last line is not the end of the text and justifies
+// like the others; taken out again on copy
+internal val NO_BREAK_RUN = " ".repeat(1_000)
+
+// put before the run when the page does not end on a space, as after Chinese, since a line
+// may not break between other text and a no-break space; after a space it may, and a zero
+// width space there would make Justify stretch that space too
+internal const val RUN_BREAK = "​"
 
 /**
  * Knows the page size and text style, and answers how much text fits on one page.
@@ -82,22 +89,31 @@ object Paginator {
 
     /**
      * The text to lay out for page [index]: when the page ends inside a paragraph, the page and
-     * then the rest of that paragraph, at most [maxTail] chars of it, so the page's last line is
-     * laid out as a line inside the paragraph, justified like the others, not as its end. Only
-     * the page's own lines are to be shown. A page that ends a paragraph or the book is as is.
+     * then [NO_BREAK_RUN], after [RUN_BREAK] unless the page ends on a space, so the page's last
+     * line is not the end of the text and justifies like the others. Only the page's own lines
+     * are to be shown. A page that ends a paragraph or the book is as is.
      */
-    fun pageTextWithTail(
-        text: String,
-        pageStarts: IntArray,
-        index: Int,
-        maxTail: Int = PAGE_TAIL_MAX,
-    ): String {
-        val start = pageStarts[index]
-        val end = if (index + 1 < pageStarts.size) pageStarts[index + 1] else text.length
-        if (end >= text.length || text[end - 1] == '\n') return text.substring(start, end)
-        val paragraphEnd = text.indexOf('\n', end).let { if (it < 0) text.length else it }
-        return text.substring(start, minOf(paragraphEnd, end + maxTail))
+    fun pageTextForLayout(text: String, pageStarts: IntArray, index: Int): String {
+        val page = pageText(text, pageStarts, index)
+        val end = pageStarts[index] + page.length
+        if (end >= text.length || page.endsWith("\n")) return page
+        val breakBefore = if (page.last().isWhitespace()) "" else RUN_BREAK
+        return page + breakBefore + NO_BREAK_RUN
     }
+
+    /**
+     * Text copied from the pages as the book has it: every [NO_BREAK_RUN] taken out with the
+     * [RUN_BREAK] before it and the line break after it, and a [RUN_BREAK] left at the end when
+     * a selection ends on a page's last line. A selection over several pages, in scroll mode,
+     * comes with a line break between each page's text; after a run that break is not the
+     * book's, since that page ends inside a paragraph.
+     */
+    fun copiedText(copied: String): String = copied
+        .replace(RUN_BREAK + NO_BREAK_RUN + "\n", "")
+        .replace(NO_BREAK_RUN + "\n", "")
+        .replace(RUN_BREAK + NO_BREAK_RUN, "")
+        .replace(NO_BREAK_RUN, "")
+        .removeSuffix(RUN_BREAK)
 
     /**
      * The text of page [index] for scroll mode, where the pages sit one under another: without

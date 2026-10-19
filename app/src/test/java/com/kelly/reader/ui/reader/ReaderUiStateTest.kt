@@ -42,7 +42,7 @@ class ReaderUiStateTest {
     }
 
     @Test
-    fun pageTextWithTail_pageEndsInsideParagraph_addsRestOfIt() {
+    fun pageTextForLayout_pageEndsInsideParagraph_addsFiller() {
         val state = ReaderUiState(
             text = "ab cd ef\ngh",
             offset = 0,
@@ -50,8 +50,8 @@ class ReaderUiStateTest {
             paginationDone = true,
         )
         assertEquals("ab ", state.pageText)
-        assertEquals("ab cd ef", state.pageTextWithTail)
-        assertEquals("", ReaderUiState(text = text).pageTextWithTail)
+        assertEquals("ab " + NO_BREAK_RUN, state.pageTextForLayout)
+        assertEquals("", ReaderUiState(text = text).pageTextForLayout)
     }
 
     @Test

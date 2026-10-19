@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -271,7 +272,7 @@ private fun PageArea(
             )
         } else {
             SinglePage(
-                text = uiState.pageTextWithTail,
+                text = uiState.pageTextForLayout,
                 pageLength = uiState.pageText.length,
                 style = style,
                 onPreviousPage = onPreviousPage,
@@ -304,16 +305,29 @@ private fun SinglePage(
             }
         },
     ) {
-        SelectionContainer {
+        PageSelectionContainer {
             PageText(text = text, pageLength = pageLength, style = style)
         }
     }
 }
 
 /**
- * A page's text laid out with what follows it in its paragraph, showing only the lines that
- * hold its first [pageLength] chars. Its last line is then not the end of the text, so with
- * Justify it reaches both margins like the lines above it.
+ * A selection container for page text whose copies come out as the book has them, without the
+ * hidden [NO_BREAK_RUN] that pages ending inside a paragraph are laid out with.
+ */
+@Composable
+private fun PageSelectionContainer(content: @Composable () -> Unit) {
+    val clipboard = LocalClipboard.current
+    val pageClipboard = remember(clipboard) { PageClipboard(clipboard) }
+    CompositionLocalProvider(LocalClipboard provides pageClipboard) {
+        SelectionContainer(content = content)
+    }
+}
+
+/**
+ * A page's text, laid out with the filler after it when it ends inside a paragraph, showing
+ * only the lines that hold its first [pageLength] chars. Its last line is then not the end of
+ * the text, so with Justify it reaches both margins like the lines above it.
  */
 @Composable
 private fun PageText(
@@ -374,16 +388,16 @@ private fun ScrollingPages(
             .collect { index -> onScrolledToPage(index) }
     }
     // one selection container around the list, so a selection can run across page items
-    SelectionContainer {
+    PageSelectionContainer {
         LazyColumn(state = listState, modifier = modifier) {
             items(count = count, key = { starts[it] }) { index ->
                 // a page ending a paragraph drops its last line break, one ending inside a
-                // paragraph is laid out with the rest of it, so its last line is justified
+                // paragraph is laid out with the hidden filler, so its last line is justified
                 val page = Paginator.pageText(uiState.text, starts, index)
                 val shown = if (page.endsWith("\n")) {
                     Paginator.scrollPageText(uiState.text, starts, index)
                 } else {
-                    Paginator.pageTextWithTail(uiState.text, starts, index)
+                    Paginator.pageTextForLayout(uiState.text, starts, index)
                 }
                 PageText(
                     text = shown,
