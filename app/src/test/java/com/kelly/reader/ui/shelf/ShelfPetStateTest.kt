@@ -292,7 +292,7 @@ class ShelfPetStateTest {
     }
 
     @Test
-    fun nextIdleMs_anySeed_isFiveToFifteenSeconds() {
+    fun nextIdleMs_anySeed_isThreeToNineSeconds() {
         repeat(50) { seed ->
             assertTrue(nextIdleMs(Random(seed)) in PET_MIN_IDLE_MS..PET_MAX_IDLE_MS)
         }
