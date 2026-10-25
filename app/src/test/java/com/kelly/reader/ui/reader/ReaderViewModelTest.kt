@@ -25,6 +25,7 @@ import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ProgressLabel
+import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
@@ -319,7 +320,7 @@ class ReaderViewModelTest {
         viewModel.setThemeKey("paper")
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value.settings
-        assertEquals(21, state.fontSize)
+        assertEquals(ReaderSettings.DEFAULT_FONT_SIZE + 1, state.fontSize)
         assertEquals(LineSpacing.LOOSE, state.lineSpacing)
         assertEquals("paper", state.themeKey)
 
