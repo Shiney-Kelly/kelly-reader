@@ -1,8 +1,10 @@
 package com.kelly.reader.ui.reader
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -13,14 +15,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 
+import com.kelly.reader.MainActivity
 import com.kelly.reader.di.appContainer
+import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.ui.SystemBarIcons
 import com.kelly.reader.ui.theme.ReaderTheme
 
 /**
  * The reader screen entry: builds the ViewModel for [bookId] and picks the reader theme, the
  * stored one or the one matching the system. The system back button leaves for the shelf, the
- * same as the drawer's button.
+ * same as the drawer's button. In paged mode the volume keys turn the pages.
  */
 @Composable
 fun ReaderRoute(
@@ -49,6 +53,21 @@ fun ReaderRoute(
 
     // back closes the drawer first, then leaves for the shelf
     BackHandler { if (drawerOpen) drawerOpen = false else onBackToShelf() }
+    // in paged mode, with the drawer closed, volume down turns to the next page and volume up
+    // back; otherwise, and in scroll mode, the keys keep changing the volume
+    val activity = LocalActivity.current as? MainActivity
+    val pagedMode = uiState.settings.readingMode == ReadingMode.PAGED
+    DisposableEffect(activity, pagedMode, drawerOpen) {
+        activity?.volumeKeys = if (pagedMode && !drawerOpen) {
+            { up ->
+                if (up) viewModel.previousPage() else viewModel.nextPage()
+                true
+            }
+        } else {
+            null
+        }
+        onDispose { activity?.volumeKeys = null }
+    }
     // the page sets the bar icons, not the system theme: light page, dark icons
     SystemBarIcons(darkIcons = theme != ReaderTheme.DARK)
     ReaderScreen(
