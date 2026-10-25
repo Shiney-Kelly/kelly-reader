@@ -58,4 +58,11 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
     }
 
     override suspend fun readText(book: Book): String = texts.getValue(book.id)
+
+    val sweeps = mutableListOf<Long>()
+
+    override suspend fun deleteOrphanFiles(olderThan: Long): Int {
+        sweeps += olderThan
+        return 0
+    }
 }

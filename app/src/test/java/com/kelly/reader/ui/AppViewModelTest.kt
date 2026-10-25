@@ -110,6 +110,14 @@ class AppViewModelTest {
     }
 
     @Test
+    fun init_sweepsFilesChangedBeforeStart() = runTest(dispatcher) {
+        val books = FakeBookRepository()
+        AppViewModel(FakeSettingsRepository(), books, clock)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(listOf(clock.millis()), books.sweeps)
+    }
+
+    @Test
     fun startRoute_recentBookDeleted_isShelf() = runTest(dispatcher) {
         val viewModel = AppViewModel(
             FakeSettingsRepository(recentBookId = "gone"),

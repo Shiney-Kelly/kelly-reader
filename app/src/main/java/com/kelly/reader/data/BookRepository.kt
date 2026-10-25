@@ -12,6 +12,10 @@ import com.kelly.reader.data.db.BookDao
 import com.kelly.reader.data.db.BookEntity
 import com.kelly.reader.domain.Book
 
+// an upload grows under its book file's name plus this until it is whole and checked
+internal const val PART_SUFFIX = ".part"
+private const val TXT_SUFFIX = ".txt"
+
 /**
  * Single source of truth for books. An interface so tests can use a fake.
  */
@@ -57,6 +61,14 @@ interface BookRepository {
      * Reads the whole text of [book].
      */
     suspend fun readText(book: Book): String
+
+    /**
+     * Deletes what an upload can leave in the books folder with no book: unfinished uploads
+     * and ".txt" files no book uses, when last changed before [olderThan] (ms since 1970), so
+     * an upload running now is never touched. Other files stay. Throws, deleting nothing,
+     * when the books cannot be read. Returns how many files went.
+     */
+    suspend fun deleteOrphanFiles(olderThan: Long): Int
 }
 
 /**
@@ -112,5 +124,18 @@ class RoomBookRepository(
     // files are stored as UTF-8 with the BOM already stripped at import, so this is a plain read
     override suspend fun readText(book: Book): String = withContext(ioDispatcher) {
         File(booksDir, book.fileName).readText(Charsets.UTF_8)
+    }
+
+    override suspend fun deleteOrphanFiles(olderThan: Long): Int {
+        // read first: when the books cannot be read this throws before anything is deleted
+        val inUse = bookDao.getFileNames().toSet()
+        return withContext(ioDispatcher) {
+            val files = booksDir.listFiles() ?: return@withContext 0
+            files.count { file ->
+                val leftover = file.name.endsWith(PART_SUFFIX) ||
+                    (file.name.endsWith(TXT_SUFFIX) && file.name !in inUse)
+                file.isFile && leftover && file.lastModified() < olderThan && file.delete()
+            }
+        }
     }
 }

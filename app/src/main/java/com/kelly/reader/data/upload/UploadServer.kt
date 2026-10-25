@@ -27,6 +27,7 @@ import java.net.ServerSocket
 import java.net.URLDecoder
 
 import com.kelly.reader.data.BookRepository
+import com.kelly.reader.data.PART_SUFFIX
 import com.kelly.reader.data.TextImport
 import com.kelly.reader.data.Utf8TextWriter
 import com.kelly.reader.domain.MAX_UPLOAD_MB
@@ -41,7 +42,6 @@ private const val STOP_GRACE_MS = 500L
 private const val STOP_TIMEOUT_MS = 1_000L
 private const val BUFFER_SIZE = 64 * 1024
 private const val BYTES_PER_MB = 1024L * 1024L
-private const val PART_SUFFIX = ".part"
 
 /**
  * What came of reading an upload's body: [bytes] read, and [charCount] of the cleaned text,
