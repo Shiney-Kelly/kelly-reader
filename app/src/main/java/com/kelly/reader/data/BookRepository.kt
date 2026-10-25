@@ -121,9 +121,11 @@ class RoomBookRepository(
         bookDao.updateProgress(id, lastOffset, progress, System.currentTimeMillis())
     }
 
-    // files are stored as UTF-8 with the BOM already stripped at import, so this is a plain read
+    // files are stored as clean UTF-8, checked on upload, so the bytes are read in one go and
+    // turned into the text at once: a big book then needs its bytes and its text in memory,
+    // not a buffer that keeps growing and copying itself
     override suspend fun readText(book: Book): String = withContext(ioDispatcher) {
-        File(booksDir, book.fileName).readText(Charsets.UTF_8)
+        String(File(booksDir, book.fileName).readBytes(), Charsets.UTF_8)
     }
 
     override suspend fun deleteOrphanFiles(olderThan: Long): Int {

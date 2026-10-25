@@ -104,6 +104,20 @@ class RoomBookRepositoryTest {
     }
 
     @Test
+    fun readText_utf8File_returnsWholeText() = runTest {
+        val text = "雨停的时候，山谷里升起了一层薄雾。\nThe fog lifted. 😀\n".repeat(1_000)
+        File(booksDir, "a.txt").writeBytes(text.toByteArray(Charsets.UTF_8))
+        val repository = RoomBookRepository(
+            FakeBookDao(emptyList()),
+            booksDir,
+            PageCache(File(root, "pages"), StandardTestDispatcher(testScheduler)),
+            StandardTestDispatcher(testScheduler),
+        )
+        val book = row("b1", "rain", "a.txt").toBook()
+        assertEquals(text, repository.readText(book))
+    }
+
+    @Test
     fun deleteOrphanFiles_booksUnreadable_deletesNothing() = runTest {
         val repository = RoomBookRepository(
             FakeBookDao(emptyList(), unreadable = true),
