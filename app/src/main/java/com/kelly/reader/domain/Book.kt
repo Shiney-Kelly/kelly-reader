@@ -33,10 +33,4 @@ data class Book(
      */
     val coverColorIndex: Int
         get() = abs(fileName.hashCode()) % COVER_COLOR_COUNT
-
-    /**
-     * The first character of the title for the cover, whole even when it is a surrogate pair.
-     */
-    val glyph: String
-        get() = if (title.isEmpty()) "" else String(Character.toChars(title.codePointAt(0)))
 }

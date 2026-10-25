@@ -418,7 +418,7 @@ private fun BookItem(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         BookCover(
-            glyph = book.glyph,
+            title = book.title,
             meta = stringResource(R.string.shelf_cover_meta, formatSize(book.sizeBytes)),
             color = AppTheme.colors.coverColors[book.coverColorIndex],
             selected = selected,

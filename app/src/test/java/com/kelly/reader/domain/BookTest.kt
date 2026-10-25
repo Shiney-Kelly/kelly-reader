@@ -13,13 +13,6 @@ class BookTest {
         Book(id = "1", title = title, fileName = fileName, sizeBytes = 0, charCount = 0, addedAt = 0)
 
     @Test
-    fun glyph_cjkAndEmoji_takesWholeFirstCharacter() {
-        assertEquals("山", book("山间小记").glyph)
-        assertEquals("📖", book("📖 Notes").glyph)
-        assertEquals("", book("").glyph)
-    }
-
-    @Test
     fun coverColorIndex_stableAndInRange() {
         val first = book("x", "abc.txt").coverColorIndex
         assertEquals(first, book("y", "abc.txt").coverColorIndex)
