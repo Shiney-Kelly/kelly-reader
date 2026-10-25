@@ -6,12 +6,25 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Constraints
 import kotlin.math.min
 
-// chars measured at a time, about three pages of Latin text; doubled when a whole window fits
-private const val WINDOW = 4_000
+// chars laid out for the first page, about two pages of Latin text at the default size
+private const val FIRST_WINDOW = 1_500
+
+// the fewest chars laid out for a page
+private const val MIN_WINDOW = 256
+
+/**
+ * How many chars to lay out for the next page: half as many again as the last page took, so
+ * the window holds the page and a line more without laying out pages that are not needed. A
+ * window that turns out too small fits whole and is doubled, so a poor guess costs time only.
+ */
+internal fun nextWindow(lastPageChars: Int): Int =
+    if (lastPageChars <= 0) FIRST_WINDOW else maxOf(MIN_WINDOW, lastPageChars + lastPageChars / 2)
 
 /**
  * A [PageMeasurer] backed by Compose's [TextMeasurer]: lays out a window of text at the page
- * [widthPx] and keeps the lines whose bottom fits within [heightPx].
+ * [widthPx] and keeps the lines whose bottom fits within [heightPx]. The window is sized from
+ * the page before; lines break greedily, so how far it reaches past the page does not move
+ * the page's own line breaks.
  */
 class ComposePageMeasurer(
     private val textMeasurer: TextMeasurer,
@@ -20,7 +33,11 @@ class ComposePageMeasurer(
     private val heightPx: Int,
 ) : PageMeasurer {
 
-    override fun charsThatFit(text: String, start: Int): Int = charsThatFit(text, start, WINDOW)
+    // chars the last page took, only to size the next window
+    private var lastPageChars = 0
+
+    override fun charsThatFit(text: String, start: Int): Int =
+        charsThatFit(text, start, nextWindow(lastPageChars)).also { lastPageChars = it }
 
     private fun charsThatFit(text: String, start: Int, window: Int): Int {
         val end = min(text.length, start + window)

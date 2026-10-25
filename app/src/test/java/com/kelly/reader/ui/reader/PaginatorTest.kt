@@ -112,24 +112,49 @@ class PaginatorTest {
     }
 
     @Test
-    fun pageTextWithTail_pageEndsInsideParagraph_addsRestOfParagraph() {
+    fun pageTextForLayout_pageEndsOnSpaceInsideParagraph_addsRun() {
         val text = "ab cd ef\ngh"
-        assertEquals("ab cd ef", Paginator.pageTextWithTail(text, intArrayOf(0, 3, 9), 0))
-        assertEquals("cd ef\n", Paginator.pageTextWithTail(text, intArrayOf(0, 3, 9), 1))
+        val page = Paginator.pageTextForLayout(text, intArrayOf(0, 3, 9), 0)
+        assertEquals("ab " + NO_BREAK_RUN, page)
+        assertEquals("cd ef\n", Paginator.pageTextForLayout(text, intArrayOf(0, 3, 9), 1))
     }
 
     @Test
-    fun pageTextWithTail_pageEndsParagraphOrBook_isThePage() {
-        assertEquals("ab\n", Paginator.pageTextWithTail("ab\ncd", intArrayOf(0, 3), 0))
-        assertEquals("cd", Paginator.pageTextWithTail("ab\ncd", intArrayOf(0, 3), 1))
+    fun pageTextForLayout_pageEndsInsideChineseParagraph_addsBreakThenRun() {
+        val page = Paginator.pageTextForLayout("你好世界", intArrayOf(0, 2), 0)
+        assertEquals("你好" + RUN_BREAK + NO_BREAK_RUN, page)
     }
 
     @Test
-    fun pageTextWithTail_longParagraph_tailIsCapped() {
-        val text = "ab cdefghij"
-        assertEquals("ab cd", Paginator.pageTextWithTail(text, intArrayOf(0, 3), 0, maxTail = 2))
-        // the paragraph runs to the end of the book
-        assertEquals("ab cdefghij", Paginator.pageTextWithTail(text, intArrayOf(0, 3), 0))
+    fun pageTextForLayout_pageEndsParagraphOrBook_isThePage() {
+        assertEquals("ab\n", Paginator.pageTextForLayout("ab\ncd", intArrayOf(0, 3), 0))
+        assertEquals("cd", Paginator.pageTextForLayout("ab\ncd", intArrayOf(0, 3), 1))
+    }
+
+    @Test
+    fun copiedText_selectAllOnPage_dropsRun() {
+        assertEquals("ab ", Paginator.copiedText("ab " + NO_BREAK_RUN))
+        assertEquals("你好", Paginator.copiedText("你好" + RUN_BREAK + NO_BREAK_RUN))
+    }
+
+    @Test
+    fun copiedText_acrossPages_dropsEveryRunAndItsJoin() {
+        // scroll mode: a selection runs through each page's whole text, run included, and the
+        // pages' texts come joined by line breaks
+        val copied = "ab " + NO_BREAK_RUN + "\n你好" + RUN_BREAK + NO_BREAK_RUN + "\nef"
+        assertEquals("ab 你好ef", Paginator.copiedText(copied))
+    }
+
+    @Test
+    fun copiedText_joinAfterParagraph_keepsLineBreak() {
+        // a page ending a paragraph is shown without its last break, and the join puts it back
+        assertEquals("ab\n\ncd", Paginator.copiedText("ab\n" + "\n" + "cd"))
+    }
+
+    @Test
+    fun copiedText_endsOnLastLine_dropsLoneBreakChar() {
+        assertEquals("ab cd", Paginator.copiedText("ab cd​"))
+        assertEquals("ab cd", Paginator.copiedText("ab cd"))
     }
 
     @Test

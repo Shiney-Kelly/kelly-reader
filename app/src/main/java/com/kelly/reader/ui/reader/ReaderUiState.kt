@@ -49,12 +49,12 @@ data class ReaderUiState(
 
     /**
      * The text to lay out for the current page: [pageText] and, when the page ends inside a
-     * paragraph, the rest of it, so its last line lays out like the others. Only the first
-     * [pageText] chars are to be shown.
+     * paragraph, the hidden no-break run, so its last line lays out like the others. Only the
+     * first [pageText] chars are to be shown.
      */
-    val pageTextWithTail: String
+    val pageTextForLayout: String
         get() = if (pageKnown) {
-            Paginator.pageTextWithTail(text, requireNotNull(pageStarts), pageIndex)
+            Paginator.pageTextForLayout(text, requireNotNull(pageStarts), pageIndex)
         } else {
             ""
         }
