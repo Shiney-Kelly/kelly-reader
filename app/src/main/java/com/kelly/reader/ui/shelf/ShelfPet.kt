@@ -257,7 +257,9 @@ fun ShelfPet(
         }
 
         LaunchedEffect(lifecycleOwner, found) {
-            // only a hidden bear leaves paw prints, and none with animations off
+            // only a hidden bear leaves paw prints, and none with animations off; a trail cut off
+            // by the knocks keeps its last look, so it is cleared before the bear comes in
+            trail.snapTo(-1f)
             if (found) return@LaunchedEffect
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 trail.snapTo(-1f)
