@@ -35,7 +35,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,6 +74,7 @@ import kotlinx.coroutines.delay
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.Book
+import com.kelly.reader.domain.BookSort
 import com.kelly.reader.domain.formatPercent
 import com.kelly.reader.domain.formatSize
 import com.kelly.reader.ui.components.AccentTextButton
@@ -114,9 +118,9 @@ private val DELETE_BAR_HEIGHT = 76.dp
 private val GRID_END_GAP = 16.dp
 
 /**
- * The bookshelf: a title row with Edit and Add, a three column grid of covers, the ledge with
- * the shelf bear along the bottom, and the delete bar in its place while books are selected.
- * [onPetFound] is called when someone knocks the hidden bear out onto the ledge.
+ * The bookshelf: a title row with Sort, Edit and Add, a three column grid of covers, the ledge
+ * with the shelf bear along the bottom, and the delete bar in its place while books are
+ * selected. [onPetFound] is called when someone knocks the hidden bear out onto the ledge.
  */
 @Composable
 fun ShelfScreen(
@@ -127,6 +131,7 @@ fun ShelfScreen(
     onAddClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onPetFound: () -> Unit,
+    onSortChange: (BookSort) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -136,6 +141,7 @@ fun ShelfScreen(
                 onEditClick = onEditClick,
                 onDoneClick = onDoneClick,
                 onAddClick = onAddClick,
+                onSortChange = onSortChange,
             )
             val books = uiState.shownBooks
             // the grid scrolls on behind the ledge or the delete bar, and its last row stops
@@ -147,6 +153,7 @@ fun ShelfScreen(
                 books.isEmpty() -> EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
                 else -> BookGrid(
                     books = books,
+                    sort = uiState.sort,
                     editing = uiState.editing,
                     selected = uiState.selected,
                     shuffling = uiState.shuffling,
@@ -272,6 +279,7 @@ private fun ShelfTopBar(
     onEditClick: () -> Unit,
     onDoneClick: () -> Unit,
     onAddClick: () -> Unit,
+    onSortChange: (BookSort) -> Unit,
 ) {
     val title = when {
         !uiState.editing -> stringResource(R.string.shelf_title)
@@ -297,6 +305,9 @@ private fun ShelfTopBar(
         if (uiState.editing) {
             AccentTextButton(label = stringResource(R.string.shelf_done), onClick = onDoneClick)
         } else {
+            if (uiState.books?.isNotEmpty() == true) {
+                SortButton(sort = uiState.sort, onSortChange = onSortChange)
+            }
             AccentTextButton(label = stringResource(R.string.shelf_edit), onClick = onEditClick)
             Spacer(modifier = Modifier.width(4.dp))
             PillButton(
@@ -309,12 +320,61 @@ private fun ShelfTopBar(
 }
 
 /**
+ * The sort icon, which opens a menu of the shelf's orders with a check by the current [sort].
+ */
+@Composable
+private fun SortButton(sort: BookSort, onSortChange: (BookSort) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.size(44.dp)) {
+            Icon(
+                imageVector = AppIcons.SORT,
+                contentDescription = stringResource(R.string.shelf_sort),
+                tint = AppTheme.colors.accentText,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            BookSort.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = stringResource(option.labelRes)) },
+                    onClick = {
+                        open = false
+                        onSortChange(option)
+                    },
+                    trailingIcon = {
+                        if (option == sort) {
+                            Icon(
+                                imageVector = AppIcons.CHECK,
+                                contentDescription = null,
+                                tint = AppTheme.colors.accentText,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val BookSort.labelRes: Int
+    get() = when (this) {
+        BookSort.LAST_READ -> R.string.shelf_sort_last_read
+        BookSort.ADDED_NEWEST -> R.string.shelf_sort_added_newest
+        BookSort.ADDED_OLDEST -> R.string.shelf_sort_added_oldest
+        BookSort.TITLE -> R.string.shelf_sort_title
+    }
+
+/**
  * The covers in a three column grid, ending [bottomPadding] above the bottom of the screen.
- * While [shuffling] the covers tumble to their mixed up places, and when it ends they snap back.
+ * A new [sort] goes back to the top. While [shuffling] the covers tumble to their mixed up
+ * places, and when it ends they snap back.
  */
 @Composable
 private fun BookGrid(
     books: List<Book>,
+    sort: BookSort,
     editing: Boolean,
     selected: Set<String>,
     shuffling: Boolean,
@@ -323,6 +383,15 @@ private fun BookGrid(
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
+    // the grid would keep the cover that was at the top in view, which in a new order is
+    // somewhere in the middle; a picked order starts from its first cover instead
+    var shownSort by remember { mutableStateOf(sort) }
+    LaunchedEffect(sort) {
+        if (sort != shownSort) {
+            shownSort = sort
+            gridState.scrollToItem(0)
+        }
+    }
     // moves glide only around a shuffle, so deleting books stays instant
     var settling by remember { mutableStateOf(false) }
     LaunchedEffect(shuffling) {
@@ -481,7 +550,7 @@ private fun ShelfScreenPreview() {
         Box(modifier = Modifier.height(844.dp)) {
             ShelfScreen(
                 ShelfUiState(books = PREVIEW_BOOKS, petFound = true),
-                {}, {}, {}, {}, {}, {},
+                {}, {}, {}, {}, {}, {}, {},
             )
         }
     }
@@ -493,7 +562,7 @@ private fun ShelfScreenDarkPreview() {
     KellyReaderTheme {
         ShelfScreen(
             ShelfUiState(books = PREVIEW_BOOKS, petFound = true),
-            {}, {}, {}, {}, {}, {},
+            {}, {}, {}, {}, {}, {}, {},
         )
     }
 }
@@ -502,7 +571,7 @@ private fun ShelfScreenDarkPreview() {
 @Composable
 private fun ShelfScreenEmptyPreview() {
     KellyReaderTheme {
-        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {}, {})
+        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -512,7 +581,7 @@ private fun ShelfScreenEditPreview() {
     KellyReaderTheme {
         ShelfScreen(
             ShelfUiState(books = PREVIEW_BOOKS, editing = true, selected = setOf("b3", "b6")),
-            {}, {}, {}, {}, {}, {},
+            {}, {}, {}, {}, {}, {}, {},
         )
     }
 }

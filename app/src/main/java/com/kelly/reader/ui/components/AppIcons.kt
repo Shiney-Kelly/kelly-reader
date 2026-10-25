@@ -73,6 +73,7 @@ object AppIcons {
     )
     val FILE = lineIcon("file", 1.8f, "M7 3h7l5 5v13H7z", "M14 3v5h5")
     val ALERT = lineIcon("alert", 3f, "M12 6v8", "M12 18.5v.5")
+    val SORT = lineIcon("sort", 2f, "M4 7h16M4 12h11M4 17h6")
     val SLIDERS = lineIcon(
         "sliders", 2f,
         "M4 7h10M18 7h2M4 17h4M12 17h8",
