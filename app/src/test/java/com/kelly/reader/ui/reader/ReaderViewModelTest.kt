@@ -139,6 +139,34 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun jumpTo_allPagesKnown_goesByPageAndSaves() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4)) // pages at 0, 4, 8
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.jumpTo(0.5f)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("efgh", viewModel.uiState.value.pageText)
+        assertEquals(4, repository.books.value.single().lastOffset)
+
+        viewModel.jumpTo(1f)
+        assertEquals("ij", viewModel.uiState.value.pageText)
+        viewModel.jumpTo(0f)
+        assertEquals("abcd", viewModel.uiState.value.pageText)
+    }
+
+    @Test
+    fun jumpTo_noPagesYet_measuresFromThePlace() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.jumpTo(0.5f)
+        assertEquals(5, viewModel.uiState.value.offset)
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        // measured from the place, so its page starts there
+        assertEquals("fghi", viewModel.uiState.value.pageText)
+    }
+
+    @Test
     fun init_countsTodayAsReadingDay() = runTest(dispatcher) {
         viewModel()
         assertEquals(1, settings.streak.value.days)

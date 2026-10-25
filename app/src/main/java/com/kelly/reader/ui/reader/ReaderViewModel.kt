@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
 import java.time.ZonedDateTime
+import kotlin.math.roundToInt
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.PageCache
@@ -217,6 +218,34 @@ class ReaderViewModel(
         val target = starts[index]
         showWaitingPages()
         moveTo(target)
+    }
+
+    /**
+     * Goes to the place [fraction] (0 to 1) of the way through the book, as the drawer's slider
+     * asks. With every page known it goes by page, as the progress counts then, so the end of
+     * the slider is the last page. While the pages are still being counted it goes by chars,
+     * and a place past the pages known so far has the pages measured again from there, as when
+     * a book opens at a saved spot.
+     */
+    fun jumpTo(fraction: Float) {
+        if (_uiState.value.book == null || _uiState.value.text.isEmpty()) return
+        showWaitingPages()
+        val state = _uiState.value
+        val share = fraction.coerceIn(0f, 1f)
+        val starts = state.pageStarts
+        val count = state.pageCount
+        if (starts != null && count != null) {
+            val index = ((share * count).roundToInt() - 1).coerceIn(0, count - 1)
+            moveTo(starts[index])
+            return
+        }
+        val target = (share * state.text.length).toInt().coerceIn(0, state.text.length - 1)
+        if (starts != null && starts.first() <= target && starts.last() > target) {
+            moveTo(starts[Paginator.pageIndexFor(starts, target)])
+            return
+        }
+        moveTo(target)
+        paginate()
     }
 
     /**
