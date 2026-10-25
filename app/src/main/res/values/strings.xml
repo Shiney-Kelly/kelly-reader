@@ -30,6 +30,8 @@
     <string name="shelf_pet_reading_label">Shelf bear is reading</string>
     <string name="shelf_pet_leave_label">Send the bear away</string>
     <string name="shelf_pet_bubble">shh… reading…</string>
+    <string name="shelf_pet_hello">hello!</string>
+    <string name="shelf_pet_bye">bye bye!</string>
     <plurals name="shelf_books_selected">
         <item quantity="one">%1$d book selected</item>
         <item quantity="other">%1$d books selected</item>

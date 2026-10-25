@@ -140,6 +140,12 @@ private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(11) + 3.dp
 private val HEAD_X = canvas(120)
 private val HEAD_X_MIRRORED = canvas(CANVAS_PX - 120)
 
+// on its feet the bear's head is lower and ahead of its middle: the ears top out 46 px down the
+// canvas and the face is about 157 px across, so hello and bye sit there instead
+private val WALK_BUBBLE_LIFT = PET_LIFT + PET_SIZE - canvas(46) + 3.dp
+private val WALK_HEAD_X = canvas(157)
+private val WALK_HEAD_X_MIRRORED = canvas(CANVAS_PX - 157)
+
 // the bubble opens away from the nearer screen edge: to the right of the head, pointing down
 // to its left, or to the left of it, pointing down to its right
 private val BUBBLE_POINTS_LEFT = RoundedCornerShape(
@@ -190,8 +196,9 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
  * both and pauses the bear, as in edit mode; the bear also pauses while the screen is not
  * resumed, and stays seated when the system has animations turned off. It keeps its place
  * while a book is open. Until [found] only the ledge shows: three quick knocks on it call the
- * bear, which peeks in from the nearer screen edge and walks on, and [onFound] keeps it. A long
- * press sends it off by the nearer edge; once it is out of sight [onLeft] hides it again.
+ * bear, which peeks in from the nearer screen edge with a hello and walks on, and [onFound] keeps
+ * it. A long press sends it off by the nearer edge with a bye; once it is out of sight [onLeft]
+ * hides it again.
  */
 @Composable
 fun ShelfPet(
@@ -404,18 +411,32 @@ fun ShelfPet(
                     onClick = { pet = pet.onTap() },
                 ),
         )
-        if (reading) {
-            val headX = pet.x.dp + if (pet.facingRight) HEAD_X else HEAD_X_MIRRORED
+        val bubble = pet.bubble
+        if (bubble != null) {
+            // the bear reads seated, and says hello and bye on its feet
+            val seated = bubble == PetBubble.READING
+            val headX = pet.x.dp + when {
+                seated && pet.facingRight -> HEAD_X
+                seated -> HEAD_X_MIRRORED
+                pet.facingRight -> WALK_HEAD_X
+                else -> WALK_HEAD_X_MIRRORED
+            }
+            val lift = if (seated) BUBBLE_LIFT else WALK_BUBBLE_LIFT
             val opensRight = headX < maxWidth / 2
             val shape = if (opensRight) BUBBLE_POINTS_LEFT else BUBBLE_POINTS_RIGHT
+            val text = when (bubble) {
+                PetBubble.READING -> R.string.shelf_pet_bubble
+                PetBubble.HELLO -> R.string.shelf_pet_hello
+                PetBubble.BYE -> R.string.shelf_pet_bye
+            }
             Text(
-                text = stringResource(R.string.shelf_pet_bubble),
+                text = stringResource(text),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(bottom = BUBBLE_LIFT + navigationBar)
+                    .padding(bottom = lift + navigationBar)
                     .layout { measurable, bubbleConstraints ->
                         // the pointed corner over the head, the bubble on the side with room;
                         // kept on screen all the same
