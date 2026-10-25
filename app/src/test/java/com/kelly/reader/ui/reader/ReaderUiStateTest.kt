@@ -42,6 +42,19 @@ class ReaderUiStateTest {
     }
 
     @Test
+    fun pageTextWithTail_pageEndsInsideParagraph_addsRestOfIt() {
+        val state = ReaderUiState(
+            text = "ab cd ef\ngh",
+            offset = 0,
+            pageStarts = intArrayOf(0, 3, 9),
+            paginationDone = true,
+        )
+        assertEquals("ab ", state.pageText)
+        assertEquals("ab cd ef", state.pageTextWithTail)
+        assertEquals("", ReaderUiState(text = text).pageTextWithTail)
+    }
+
+    @Test
     fun pageText_anchoredStarts_showsCurrentPageWithoutPageNumber() {
         val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(5, 9))
         assertTrue(state.pageKnown)

@@ -48,6 +48,18 @@ data class ReaderUiState(
         get() = if (pageKnown) Paginator.pageText(text, requireNotNull(pageStarts), pageIndex) else ""
 
     /**
+     * The text to lay out for the current page: [pageText] and, when the page ends inside a
+     * paragraph, the rest of it, so its last line lays out like the others. Only the first
+     * [pageText] chars are to be shown.
+     */
+    val pageTextWithTail: String
+        get() = if (pageKnown) {
+            Paginator.pageTextWithTail(text, requireNotNull(pageStarts), pageIndex)
+        } else {
+            ""
+        }
+
+    /**
      * Progress in 0..1: by page once the count is known, by chars before that.
      */
     val progress: Float

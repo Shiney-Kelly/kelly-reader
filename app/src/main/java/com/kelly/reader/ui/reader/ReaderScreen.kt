@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,9 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -268,7 +271,8 @@ private fun PageArea(
             )
         } else {
             SinglePage(
-                text = uiState.pageText,
+                text = uiState.pageTextWithTail,
+                pageLength = uiState.pageText.length,
                 style = style,
                 onPreviousPage = onPreviousPage,
                 onNextPage = onNextPage,
@@ -279,13 +283,15 @@ private fun PageArea(
 }
 
 /**
- * Paged mode: the current page. A tap on the left half goes back a page and on the right half
- * forward, by screen position whatever the text direction. A long press starts a text
- * selection with the system copy toolbar; while one is shown, a tap clears it instead.
+ * Paged mode: the current page, from [text] with only its first [pageLength] chars' lines
+ * shown. A tap on the left half goes back a page and on the right half forward, by screen
+ * position whatever the text direction. A long press starts a text selection with the system
+ * copy toolbar; while one is shown, a tap clears it instead.
  */
 @Composable
 private fun SinglePage(
     text: String,
+    pageLength: Int,
     style: TextStyle,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
@@ -299,8 +305,38 @@ private fun SinglePage(
         },
     ) {
         SelectionContainer {
-            Text(text = text, style = style, overflow = TextOverflow.Clip)
+            PageText(text = text, pageLength = pageLength, style = style)
         }
+    }
+}
+
+/**
+ * A page's text laid out with what follows it in its paragraph, showing only the lines that
+ * hold its first [pageLength] chars. Its last line is then not the end of the text, so with
+ * Justify it reaches both margins like the lines above it.
+ */
+@Composable
+private fun PageText(
+    text: String,
+    pageLength: Int,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    val textMeasurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val width = constraints.maxWidth
+        val lines = remember(text, pageLength, style, width) {
+            if (pageLength <= 0 || pageLength >= text.length) {
+                Int.MAX_VALUE
+            } else {
+                textMeasurer.measure(
+                    text = text,
+                    style = style,
+                    constraints = Constraints(maxWidth = width),
+                ).getLineForOffset(pageLength - 1) + 1
+            }
+        }
+        Text(text = text, style = style, maxLines = lines, overflow = TextOverflow.Clip)
     }
 }
 
@@ -341,10 +377,18 @@ private fun ScrollingPages(
     SelectionContainer {
         LazyColumn(state = listState, modifier = modifier) {
             items(count = count, key = { starts[it] }) { index ->
-                Text(
-                    text = Paginator.scrollPageText(uiState.text, starts, index),
+                // a page ending a paragraph drops its last line break, one ending inside a
+                // paragraph is laid out with the rest of it, so its last line is justified
+                val page = Paginator.pageText(uiState.text, starts, index)
+                val shown = if (page.endsWith("\n")) {
+                    Paginator.scrollPageText(uiState.text, starts, index)
+                } else {
+                    Paginator.pageTextWithTail(uiState.text, starts, index)
+                }
+                PageText(
+                    text = shown,
+                    pageLength = minOf(page.length, shown.length),
                     style = pageStyle,
-                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
