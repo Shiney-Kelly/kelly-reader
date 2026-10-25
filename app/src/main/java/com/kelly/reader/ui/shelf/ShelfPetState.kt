@@ -6,6 +6,11 @@ import kotlin.random.Random
 // ----- timing -----
 
 const val PET_TICK_MS = 125L
+
+// while walking the ticks come faster, so the bear covers ground half again as fast with the
+// same step and the same frames, and its feet still match the ground; every other time in the
+// cycle is counted in milliseconds and keeps its length
+const val PET_WALK_TICK_MS = 80L
 const val PET_SIT_FRAME_MS = 160L
 const val PET_IDLE_FRAME_MS = 500L
 const val PET_READ_FRAME_MS = 360L
@@ -338,6 +343,19 @@ data class ShelfPetState(
             else -> 1f
         }
     }
+
+    /**
+     * Whether the bear is taking steps now: walking, walking in after its peek, or walking off
+     * once it has got up. Its ticks come every [PET_WALK_TICK_MS] then, else every
+     * [PET_TICK_MS].
+     */
+    val onFeet: Boolean
+        get() = when (mode) {
+            PetMode.WALK -> true
+            PetMode.ENTER -> elapsedMs >= PET_ANSWER_MS + PET_PEEK_MS
+            PetMode.LEAVE -> elapsedMs >= STAND_UP_MS
+            else -> false
+        }
 
     /**
      * Whether the bear is drawn: not while it waits to answer a knock, nor once it is gone.

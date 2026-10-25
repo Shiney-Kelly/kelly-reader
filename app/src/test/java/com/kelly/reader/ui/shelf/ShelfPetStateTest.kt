@@ -146,6 +146,22 @@ class ShelfPetStateTest {
     }
 
     @Test
+    fun onFeet_onlyWhileTakingSteps() {
+        assertTrue(ShelfPetState(mode = PetMode.WALK).onFeet)
+        assertFalse(ShelfPetState(mode = PetMode.IDLE).onFeet)
+        assertFalse(ShelfPetState(mode = PetMode.READ).onFeet)
+        assertFalse(ShelfPetState(mode = PetMode.STAND_UP).onFeet)
+        // entering: not while it waits and peeks, then yes
+        val peeking = ShelfPetState(mode = PetMode.ENTER, elapsedMs = PET_ANSWER_MS)
+        assertFalse(peeking.onFeet)
+        assertTrue(peeking.copy(elapsedMs = PET_ANSWER_MS + PET_PEEK_MS).onFeet)
+        // leaving: not while it gets up, then yes
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertFalse(leaving.onFeet)
+        assertTrue(leaving.ticks(ticksFor(PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS)).onFeet)
+    }
+
+    @Test
     fun onLongPress_sittingOnTheLeft_getsUpWalksOffLeftAndIsGone() {
         val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
         assertEquals(PetMode.LEAVE, leaving.mode)
