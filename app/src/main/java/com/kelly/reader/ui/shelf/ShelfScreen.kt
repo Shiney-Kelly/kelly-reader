@@ -334,7 +334,9 @@ private fun BookGrid(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 128.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp),
+        // with the progress line kept to its text, this leaves rows about as far apart as the
+        // columns
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(books, key = { it.id }) { book ->
             BookItem(
@@ -433,6 +435,8 @@ private fun ProgressRow(book: Book, modifier: Modifier = Modifier) {
                 formatPercent(book.progress)
             },
             fontSize = 11.sp,
+            // its own line height: the theme's 24sp would make the row twice as tall as the text
+            lineHeight = 14.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
