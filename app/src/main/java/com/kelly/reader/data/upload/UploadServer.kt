@@ -27,6 +27,7 @@ import java.net.URLDecoder
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.TextImport
 import com.kelly.reader.data.Utf8TextWriter
+import com.kelly.reader.domain.MAX_UPLOAD_MB
 import com.kelly.reader.domain.Transfer
 import com.kelly.reader.domain.TransferFailure
 import com.kelly.reader.domain.TransferStatus
@@ -37,16 +38,19 @@ private const val FILE_NAME_HEADER = "X-File-Name"
 private const val STOP_GRACE_MS = 500L
 private const val STOP_TIMEOUT_MS = 1_000L
 private const val BUFFER_SIZE = 64 * 1024
+private const val BYTES_PER_MB = 1024L * 1024L
 
 /**
  * The Wi-Fi upload server. Serves [page] at the root and takes one file per `POST /upload`,
- * sent as a raw body with the file name URL-encoded in the `X-File-Name` header. Progress and
- * results of every file show up in [transfers]. Start it with [start], stop it with [stop].
+ * sent as a raw body with the file name URL-encoded in the `X-File-Name` header. Files over
+ * [maxBytes] are turned away. Progress and results of every file show up in [transfers].
+ * Start it with [start], stop it with [stop].
  */
 class UploadServer(
     private val bookRepository: BookRepository,
     private val page: String,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val maxBytes: Long = MAX_UPLOAD_MB * BYTES_PER_MB,
 ) {
 
     private val _transfers = MutableStateFlow<List<Transfer>>(emptyList())
@@ -99,11 +103,16 @@ class UploadServer(
             call.respondText("Not a .txt file, skipped", status = HttpStatusCode.UnsupportedMediaType)
             return
         }
+        if (size > maxBytes) {
+            turnAwayTooBig(call, id, name, size)
+            return
+        }
         setStatus(id, name, size, TransferStatus.Uploading(0))
 
         val file = bookRepository.newBookFile()
         // the text is checked and cleaned as it arrives, so a big file never sits in memory
         var received = 0L
+        var tooBig = false
         val charCount = try {
             withContext(ioDispatcher) {
                 val channel = call.receiveChannel()
@@ -114,6 +123,11 @@ class UploadServer(
                         val n = channel.readAvailable(buffer, 0, buffer.size)
                         if (n == -1) break
                         received += n
+                        // a body sent without its size can still run past the limit
+                        if (received > maxBytes) {
+                            tooBig = true
+                            break
+                        }
                         // after a bad byte the rest is only read off the connection, unused
                         if (text.valid) text.write(buffer, n)
                         if (size > 0) {
@@ -121,7 +135,7 @@ class UploadServer(
                             setStatus(id, name, size, TransferStatus.Uploading(percent))
                         }
                     }
-                    if (text.valid && text.finish()) text.charCount else null
+                    if (!tooBig && text.valid && text.finish()) text.charCount else null
                 }
             }
         } catch (e: Exception) {
@@ -130,6 +144,11 @@ class UploadServer(
             throw e
         }
 
+        if (tooBig) {
+            file.delete()
+            turnAwayTooBig(call, id, name, received)
+            return
+        }
         if (charCount == null) {
             file.delete()
             setStatus(id, name, received, TransferStatus.Failed(TransferFailure.NOT_UTF8))
@@ -140,6 +159,14 @@ class UploadServer(
         bookRepository.addBook(file, title, charCount)
         setStatus(id, name, file.length(), TransferStatus.Added)
         call.respondText("ok")
+    }
+
+    private suspend fun turnAwayTooBig(call: ApplicationCall, id: Int, name: String, size: Long) {
+        setStatus(id, name, size, TransferStatus.Failed(TransferFailure.TOO_BIG))
+        call.respondText(
+            text = "Over $MAX_UPLOAD_MB MB, skipped",
+            status = HttpStatusCode.PayloadTooLarge,
+        )
     }
 
     /**

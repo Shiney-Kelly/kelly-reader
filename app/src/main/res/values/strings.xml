@@ -57,6 +57,7 @@
     <string name="add_status_not_txt">Not a .txt file, skipped</string>
     <string name="add_status_not_utf8">Not UTF-8 text, skipped</string>
     <string name="add_status_interrupted">Connection lost, skipped</string>
+    <string name="add_status_too_big">Over %1$d MB, skipped</string>
     <string name="add_row_sub">%1$s · %2$s</string>
     <string name="add_added">Added</string>
     <string name="add_failed">Failed</string>

@@ -36,12 +36,22 @@ class UploadServerTest {
         server.stop()
     }
 
-    private fun post(name: String, body: ByteArray): Pair<Int, String> {
-        val connection = URL("http://127.0.0.1:$port/upload").openConnection() as HttpURLConnection
+    // chunked sends the body without a Content-Length, as a client that does not know the size
+    private fun post(
+        name: String,
+        body: ByteArray,
+        toPort: Int = port,
+        chunked: Boolean = false,
+    ): Pair<Int, String> {
+        val connection = URL("http://127.0.0.1:$toPort/upload").openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
         connection.doOutput = true
         connection.setRequestProperty("X-File-Name", URLEncoder.encode(name, "UTF-8"))
-        connection.setFixedLengthStreamingMode(body.size)
+        if (chunked) {
+            connection.setChunkedStreamingMode(1_024)
+        } else {
+            connection.setFixedLengthStreamingMode(body.size)
+        }
         connection.outputStream.use { it.write(body) }
         val code = connection.responseCode
         val stream = if (code < 400) connection.inputStream else connection.errorStream
@@ -138,6 +148,41 @@ class UploadServerTest {
         assertTrue(message.contains("Not UTF-8"))
         assertTrue(repository.books.value.isEmpty())
         assertFalse(repository.files.single().exists())
+    }
+
+    @Test
+    fun post_overLimit_isRejectedWith413BeforeReceiving() {
+        val small = UploadServer(repository, page = "", maxBytes = 1_000)
+        val smallPort = small.start(preferredPort = 0)
+        try {
+            val body = ByteArray(2_000) { 'a'.code.toByte() }
+            val (code, message) = post("big.txt", body, toPort = smallPort)
+            assertEquals(413, code)
+            assertTrue(message.contains("MB, skipped"))
+            val transfer = small.transfers.value.single()
+            assertEquals(TransferStatus.Failed(TransferFailure.TOO_BIG), transfer.status)
+            assertTrue(repository.books.value.isEmpty())
+            assertTrue(repository.files.isEmpty())
+        } finally {
+            small.stop()
+        }
+    }
+
+    @Test
+    fun post_overLimitWithoutSize_isRejectedWith413AndFileDeleted() {
+        val small = UploadServer(repository, page = "", maxBytes = 1_000)
+        val smallPort = small.start(preferredPort = 0)
+        try {
+            val body = ByteArray(5_000) { 'a'.code.toByte() }
+            val (code, _) = post("big.txt", body, toPort = smallPort, chunked = true)
+            assertEquals(413, code)
+            val transfer = small.transfers.value.single()
+            assertEquals(TransferStatus.Failed(TransferFailure.TOO_BIG), transfer.status)
+            assertTrue(repository.books.value.isEmpty())
+            assertFalse(repository.files.single().exists())
+        } finally {
+            small.stop()
+        }
     }
 
     @Test
