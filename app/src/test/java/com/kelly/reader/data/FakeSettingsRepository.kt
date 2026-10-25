@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.update
 import java.time.ZonedDateTime
 
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
@@ -58,6 +59,10 @@ class FakeSettingsRepository(
 
     override suspend fun setTextAlignment(alignment: TextAlignment) {
         settings.update { it.copy(textAlignment = alignment) }
+    }
+
+    override suspend fun setProgressLabel(label: ProgressLabel) {
+        settings.update { it.copy(progressLabel = label) }
     }
 
     override val readingStreak: Flow<ReadingStreak> = this.streak

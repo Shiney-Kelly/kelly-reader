@@ -73,6 +73,9 @@
     <string name="reader_mode">Reading mode</string>
     <string name="reader_mode_paged">Paged</string>
     <string name="reader_mode_scroll">Scroll</string>
+    <string name="reader_progress">Progress</string>
+    <string name="reader_progress_percent">Percent</string>
+    <string name="reader_progress_page">Page</string>
     <string name="reader_text_size">Text size</string>
     <string name="reader_alignment">Alignment</string>
     <string name="reader_align_left">Left</string>

@@ -17,6 +17,7 @@ import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.SettingsRepository
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
@@ -235,5 +236,12 @@ class ReaderViewModel(
 
     fun setTextAlignment(alignment: TextAlignment) {
         viewModelScope.launch { settingsRepository.setTextAlignment(alignment) }
+    }
+
+    /**
+     * Picks what the lower right corner shows. Only the label changes, the pages stay the same.
+     */
+    fun setProgressLabel(label: ProgressLabel) {
+        viewModelScope.launch { settingsRepository.setProgressLabel(label) }
     }
 }

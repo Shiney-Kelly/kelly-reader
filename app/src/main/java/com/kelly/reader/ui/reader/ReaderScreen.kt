@@ -3,7 +3,6 @@ package com.kelly.reader.ui.reader
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.Book
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
@@ -71,6 +72,12 @@ import com.kelly.reader.ui.theme.ReaderTheme
 
 private val TOP_ROW_HEIGHT = 56.dp
 private val FOOTER_HEIGHT = 44.dp
+// 12 sp unless that is too wide, then down to 8 sp; both grow with the system font scale
+private val FOOTER_AUTO_SIZE = TextAutoSize.StepBased(
+    minFontSize = 8.sp,
+    maxFontSize = 12.sp,
+    stepSize = 0.5.sp,
+)
 private val TEXT_SIDE_PADDING = 26.dp
 private val TEXT_TOP_PADDING = 8.dp
 
@@ -111,8 +118,8 @@ fun pageTextStyle(settings: ReaderSettings): TextStyle = TextStyle(
 )
 
 /**
- * The reader: a thin title row, the page text, a footer with the page number and the
- * percentage, and the settings drawer over it all when [drawerOpen]. [onPageMeasurer] gets a
+ * The reader: a thin title row, the page text, a footer with the percentage or the page
+ * number, and the settings drawer over it all when [drawerOpen]. [onPageMeasurer] gets a
  * measurer for the current page size and style.
  */
 @Composable
@@ -424,23 +431,31 @@ fun pageLabel(uiState: ReaderUiState): String {
     }
 }
 
+/**
+ * The lower right corner: the percentage, or the page number when the reader picked it. The
+ * label stays on one line and shrinks to fit when a large system font and a long book make it
+ * too wide, so no digit gets cut off.
+ */
 @Composable
 private fun ReaderFooter(uiState: ReaderUiState, muted: Color) {
-    val pageLabel = pageLabel(uiState)
-    Row(
+    val label = when (uiState.settings.progressLabel) {
+        ProgressLabel.PERCENT -> uiState.percentLabel
+        ProgressLabel.PAGE -> pageLabel(uiState)
+    }
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(FOOTER_HEIGHT)
             .padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        contentAlignment = Alignment.CenterEnd,
     ) {
-        Text(text = pageLabel, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = muted)
         Text(
-            text = uiState.percentLabel,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
+            text = label,
             color = muted,
+            autoSize = FOOTER_AUTO_SIZE,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -481,6 +496,17 @@ private fun ReaderScreenScrollPreview() {
     KellyReaderTheme {
         ReaderScreen(
             PREVIEW_STATE.copy(settings = ReaderSettings(readingMode = ReadingMode.SCROLL)),
+            ReaderTheme.LIGHT, false, SettingsActions.NONE, {}, {}, {}, {}, {}, {}, { _, _ -> },
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun ReaderScreenPageNumberPreview() {
+    KellyReaderTheme {
+        ReaderScreen(
+            PREVIEW_STATE.copy(settings = ReaderSettings(progressLabel = ProgressLabel.PAGE)),
             ReaderTheme.LIGHT, false, SettingsActions.NONE, {}, {}, {}, {}, {}, {}, { _, _ -> },
         )
     }

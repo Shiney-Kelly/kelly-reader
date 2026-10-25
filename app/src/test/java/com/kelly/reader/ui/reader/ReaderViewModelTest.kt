@@ -23,6 +23,7 @@ import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
@@ -327,6 +328,23 @@ class ReaderViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(ReadingMode.SCROLL, viewModel.uiState.value.settings.readingMode)
         assertEquals(TextAlignment.LEFT, viewModel.uiState.value.settings.textAlignment)
+    }
+
+    @Test
+    fun setProgressLabel_page_storedAndPagesKept() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.nextPage()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.setProgressLabel(ProgressLabel.PAGE)
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertEquals(ProgressLabel.PAGE, settings.settings.value.progressLabel)
+        assertEquals(ProgressLabel.PAGE, state.settings.progressLabel)
+        assertArrayEquals(intArrayOf(0, 4, 8), state.pageStarts)
+        assertEquals(1, state.pageIndex)
     }
 
     @Test

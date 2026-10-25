@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.TextAlignment
@@ -76,10 +77,11 @@ data class SettingsActions(
     val onTheme: (ReaderTheme?) -> Unit,
     val onReadingMode: (ReadingMode) -> Unit,
     val onTextAlignment: (TextAlignment) -> Unit,
+    val onProgressLabel: (ProgressLabel) -> Unit,
 ) {
 
     companion object {
-        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {})
+        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -148,6 +150,10 @@ private fun DrawerPanel(
         DrawerHeader(onClose = onClose)
         BookCard(uiState = uiState)
         ReadingModeSection(selected = uiState.settings.readingMode, onPick = actions.onReadingMode)
+        ProgressLabelSection(
+            selected = uiState.settings.progressLabel,
+            onPick = actions.onProgressLabel,
+        )
         TextSizeSection(fontSize = uiState.settings.fontSize, actions = actions)
         AlignmentSection(selected = uiState.settings.textAlignment, onPick = actions.onTextAlignment)
         LineSpacingSection(selected = uiState.settings.lineSpacing, onPick = actions.onLineSpacing)
@@ -183,6 +189,22 @@ private fun ReadingModeSection(selected: ReadingMode, onPick: (ReadingMode) -> U
                     label = stringResource(mode.labelRes),
                     selected = mode == selected,
                     onClick = { onPick(mode) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressLabelSection(selected: ProgressLabel, onPick: (ProgressLabel) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_progress)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ProgressLabel.entries.forEach { label ->
+                SegmentButton(
+                    label = stringResource(label.labelRes),
+                    selected = label == selected,
+                    onClick = { onPick(label) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -359,6 +381,12 @@ private val ReadingMode.labelRes: Int
     get() = when (this) {
         ReadingMode.PAGED -> R.string.reader_mode_paged
         ReadingMode.SCROLL -> R.string.reader_mode_scroll
+    }
+
+private val ProgressLabel.labelRes: Int
+    get() = when (this) {
+        ProgressLabel.PERCENT -> R.string.reader_progress_percent
+        ProgressLabel.PAGE -> R.string.reader_progress_page
     }
 
 private val ReaderFont.labelRes: Int
