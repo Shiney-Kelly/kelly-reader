@@ -1,5 +1,6 @@
 package com.kelly.reader.ui.reader
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -68,6 +69,27 @@ class ReaderViewModelTest {
         assertEquals(book, viewModel.uiState.value.book)
         assertEquals(text, viewModel.uiState.value.text)
         assertEquals("b1", settings.recent.value)
+    }
+
+    @Test
+    fun init_textStillReading_showsSavedPercentAndPagesNothing() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 4, progress = 0.4114f))
+        val gate = CompletableDeferred<Unit>()
+        repository.readTextGate = gate
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        val loading = viewModel.uiState.value
+        assertEquals("41.14%", loading.percentLabel)
+        assertEquals(null, loading.book)
+        assertEquals(null, loading.pageStarts)
+
+        gate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+        val read = viewModel.uiState.value
+        assertEquals(text, read.text)
+        assertEquals(4, read.offset)
+        assertEquals("efgh", read.pageText)
     }
 
     @Test

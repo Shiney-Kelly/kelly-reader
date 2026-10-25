@@ -9,10 +9,12 @@ import com.kelly.reader.domain.formatPercent
  * truth for the position: a page start, or after the pages change, a char inside the page that
  * holds it. The page index follows from it and [pageStarts].
  * [pageStarts] is null until the first page has been measured, and [paginationDone] turns
- * true once every page is known. [isRtl] says the text reads right to left.
+ * true once every page is known. [isRtl] says the text reads right to left. [savedProgress] is
+ * the progress saved for the book, shown while its text is still being read.
  */
 data class ReaderUiState(
     val book: Book? = null,
+    val savedProgress: Float = 0f,
     val text: String = "",
     val isRtl: Boolean = false,
     val offset: Int = 0,
@@ -60,14 +62,15 @@ data class ReaderUiState(
         }
 
     /**
-     * Progress in 0..1: by page once the count is known, by chars before that.
+     * Progress in 0..1: by page once the count is known, by chars before that, and the saved
+     * progress while there is no text yet, so a big book does not show 0% while it loads.
      */
     val progress: Float
         get() {
             val count = pageCount
             return when {
                 count != null && count > 0 -> (pageIndex + 1).toFloat() / count
-                text.isEmpty() -> 0f
+                text.isEmpty() -> savedProgress
                 else -> offset.toFloat() / text.length
             }
         }
@@ -86,6 +89,7 @@ data class ReaderUiState(
         if (this === other) return true
         if (other !is ReaderUiState) return false
         return book == other.book &&
+            savedProgress == other.savedProgress &&
             text == other.text &&
             isRtl == other.isRtl &&
             offset == other.offset &&
@@ -96,6 +100,7 @@ data class ReaderUiState(
 
     override fun hashCode(): Int {
         var result = book.hashCode()
+        result = 31 * result + savedProgress.hashCode()
         result = 31 * result + text.hashCode()
         result = 31 * result + isRtl.hashCode()
         result = 31 * result + offset

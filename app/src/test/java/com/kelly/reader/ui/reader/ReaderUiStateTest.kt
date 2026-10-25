@@ -72,4 +72,12 @@ class ReaderUiStateTest {
         val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(0, 4, 8))
         assertEquals("50.00%", state.percentLabel)
     }
+
+    @Test
+    fun percent_textNotReadYet_isSavedProgress() {
+        val loading = ReaderUiState(savedProgress = 0.4114f)
+        assertEquals("41.14%", loading.percentLabel)
+        val read = loading.copy(text = text, offset = 5)
+        assertEquals("50.00%", read.percentLabel)
+    }
 }

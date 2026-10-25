@@ -51,6 +51,9 @@ class ReaderViewModel(
     init {
         viewModelScope.launch {
             val book = bookRepository.getBook(bookId) ?: return@launch
+            // the saved percentage shows while a big book's text is still being read; the book
+            // itself goes in with its text, so nothing is paged before the text is there
+            _uiState.update { it.copy(savedProgress = book.progress) }
             val text = bookRepository.readText(book)
             _uiState.update {
                 it.copy(

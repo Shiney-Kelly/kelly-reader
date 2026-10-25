@@ -1,5 +1,6 @@
 package com.kelly.reader.data
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -57,7 +58,13 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
         }
     }
 
-    override suspend fun readText(book: Book): String = texts.getValue(book.id)
+    // when set, reading a text waits for it, as a big book takes a while
+    var readTextGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun readText(book: Book): String {
+        readTextGate?.await()
+        return texts.getValue(book.id)
+    }
 
     val sweeps = mutableListOf<Long>()
 
