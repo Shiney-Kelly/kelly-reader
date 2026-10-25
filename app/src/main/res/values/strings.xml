@@ -64,9 +64,9 @@
     <string name="add_footer">Keep this screen open while files upload. Transfer stops when you leave.</string>
 
     <string name="reader_settings">Reading settings</string>
-    <string name="reader_page_of">Page %1$d of %2$d</string>
-    <string name="reader_page_of_unknown">Page %1$d of …</string>
-    <string name="reader_page_unknown">Page … of …</string>
+    <string name="reader_page_of">%1$d/%2$d</string>
+    <string name="reader_page_of_unknown">%1$d/…</string>
+    <string name="reader_page_unknown">…/…</string>
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_next_page">Next page</string>
     <string name="reader_close_settings">Close settings</string>

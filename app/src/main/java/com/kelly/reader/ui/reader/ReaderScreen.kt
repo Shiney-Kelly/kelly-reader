@@ -417,8 +417,8 @@ private fun ScrollingPages(
 }
 
 /**
- * "Page x of y" once everything is known, "Page x of …" while the count is still coming, and
- * "Page … of …" while the pages before the resume point are still coming.
+ * The page as "x/y" once everything is known, "x/…" while the count is still coming, and
+ * "…/…" while the pages before the resume point are still coming.
  */
 @Composable
 fun pageLabel(uiState: ReaderUiState): String {
