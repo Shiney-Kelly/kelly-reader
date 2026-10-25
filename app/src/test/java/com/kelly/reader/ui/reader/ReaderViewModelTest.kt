@@ -114,6 +114,20 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun init_textStillReading_passingLayoutWithoutList_keepsSavedPage() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5, progress = 0.5f))
+        pageCache.save("b1", "k", intArrayOf(0, 4, 8))
+        repository.readTextGate = CompletableDeferred()
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.setPageMeasurer("settling", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.labelPage)
+        assertEquals(3, viewModel.uiState.value.labelPageCount)
+    }
+
+    @Test
     fun init_textStillReading_layoutNeverCounted_pageUnknown() = runTest(dispatcher) {
         repository.readTextGate = CompletableDeferred()
         val viewModel = viewModel()

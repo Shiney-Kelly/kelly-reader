@@ -2,6 +2,7 @@ package com.kelly.reader.ui.reader
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
 import java.time.ZonedDateTime
 
@@ -22,6 +24,9 @@ import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.TextAlignment
+
+// the screen's layout usually comes a fraction of a second after the book's row
+private const val LAYOUT_WAIT_MS = 500L
 
 /**
  * Loads the book, paginates it for the measurer the screen hands over, moves between pages
@@ -51,6 +56,11 @@ class ReaderViewModel(
     // the reading spot saved in the book's row, known before its text
     private var savedSpot: Int? = null
 
+    // the screen's first layout, which opening waits for a moment, and whether the text is
+    // being read, after which a new layout looks up its saved page on its own
+    private val layoutKnown = CompletableDeferred<Unit>()
+    private var readingText = false
+
     init {
         viewModelScope.launch {
             val book = bookRepository.getBook(bookId) ?: return@launch
@@ -58,7 +68,12 @@ class ReaderViewModel(
             // itself goes in with its text, so nothing is paged before the text is there
             _uiState.update { it.copy(savedProgress = book.progress) }
             savedSpot = book.lastOffset
-            showSavedPage()
+            // the saved page list is read before the text: reading a big book fills the memory
+            // and holds up everything else, the page number with it. The layout that names the
+            // list comes a moment after the book's row
+            withTimeoutOrNull(LAYOUT_WAIT_MS) { layoutKnown.await() }
+            loadSavedPage()
+            readingText = true
             val text = bookRepository.readText(book)
             _uiState.update {
                 it.copy(
@@ -88,26 +103,27 @@ class ReaderViewModel(
         if (key == measurerKey) return
         measurerKey = key
         this.measurer = measurer
-        showSavedPage()
+        layoutKnown.complete(Unit)
+        if (readingText) viewModelScope.launch { loadSavedPage() }
         paginate()
     }
 
     /**
      * While the text is still being read, finds the page of the saved spot in the saved page
-     * list of the current layout, so the page number shows at once. A layout never counted
-     * leaves it unknown. Needs both the spot and the layout, so it runs when the second comes.
+     * list of the current layout, so the page number shows at once. Needs both the spot and
+     * the layout.
      */
-    private fun showSavedPage() {
+    private suspend fun loadSavedPage() {
         val key = measurerKey ?: return
         val spot = savedSpot ?: return
         if (_uiState.value.book != null) return
-        viewModelScope.launch {
-            val starts = cache[key] ?: pageCache.load(bookId, key)
-            // the text may have come in, or the layout changed, while the list was read
-            if (_uiState.value.book != null || key != measurerKey) return@launch
-            val page = starts?.let { SavedPage(Paginator.pageIndexFor(it, spot) + 1, it.size) }
-            _uiState.update { it.copy(savedPage = page) }
-        }
+        // a layout never counted keeps the number found so far: the page area changes size a
+        // few times while the screen settles, and those passing sizes have no list
+        val starts = cache[key] ?: pageCache.load(bookId, key) ?: return
+        // the text may have come in, or the layout changed, while the list was read
+        if (_uiState.value.book != null || key != measurerKey) return
+        val page = SavedPage(Paginator.pageIndexFor(starts, spot) + 1, starts.size)
+        _uiState.update { it.copy(savedPage = page) }
     }
 
     private fun paginate() {

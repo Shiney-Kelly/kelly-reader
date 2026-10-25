@@ -80,23 +80,27 @@ data class ReaderUiState(
     val percentLabel: String
         get() = formatPercent(progress)
 
+    // just opened: the text, or its first pages, are not in yet
+    private val beforeFirstPages: Boolean
+        get() = book == null || pageStarts == null
+
     /**
-     * The page number for the label, null while not known: the saved page until the book is
-     * in, then the page once the pages before it are measured.
+     * The page number for the label, null while not known: the saved page until the first
+     * pages are in, then the page once the pages before it are measured.
      */
     val labelPage: Int?
         get() = when {
-            book == null -> savedPage?.number
+            beforeFirstPages -> savedPage?.number
             pageNumberKnown -> pageIndex + 1
             else -> null
         }
 
     /**
-     * The page count for the label, null while not known: the saved count until the book is
-     * in, then the count once every page is measured.
+     * The page count for the label, null while not known: the saved count until the first
+     * pages are in, then the count once every page is measured.
      */
     val labelPageCount: Int?
-        get() = if (book == null) savedPage?.count else pageCount
+        get() = if (beforeFirstPages) savedPage?.count else pageCount
 
     val hasPreviousPage: Boolean
         get() = pageIndex > 0

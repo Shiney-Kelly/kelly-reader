@@ -88,6 +88,10 @@ class ReaderUiStateTest {
     @Test
     fun labelPage_bookIn_followsMeasuredPages() {
         val book = Book("b1", "Harbor", "b1.txt", 10, text.length, 0)
+        // the text is in but no page yet: still the saved page
+        val textOnly = ReaderUiState(book = book, savedPage = SavedPage(9, 9), text = text)
+        assertEquals(9, textOnly.labelPage)
+        assertEquals(9, textOnly.labelPageCount)
         val running = ReaderUiState(
             book = book,
             savedPage = SavedPage(9, 9),
