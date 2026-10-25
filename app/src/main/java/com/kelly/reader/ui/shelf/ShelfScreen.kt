@@ -17,10 +17,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -58,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -101,6 +105,14 @@ private val SNAP_BACK_SPRING = spring(
 // move draw nothing until the move ends
 private val NO_GLIDE = snap<IntOffset>()
 
+// ----- bottom of the grid -----
+
+// the delete bar above the navigation bar: 14dp, the 48dp button, 14dp
+private val DELETE_BAR_HEIGHT = 76.dp
+
+// the last row of covers ends this far above the ledge, or above the delete bar when editing
+private val GRID_END_GAP = 16.dp
+
 /**
  * The bookshelf: a title row with Edit and Add, a three column grid of covers, the ledge with
  * the shelf bear along the bottom, and the delete bar in its place while books are selected.
@@ -126,6 +138,10 @@ fun ShelfScreen(
                 onAddClick = onAddClick,
             )
             val books = uiState.shownBooks
+            // the grid scrolls on behind the ledge or the delete bar, and its last row stops
+            // just above them
+            val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val bottomBar = if (uiState.editing) DELETE_BAR_HEIGHT else LEDGE_TOTAL_HEIGHT
             when {
                 books == null -> Unit
                 books.isEmpty() -> EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
@@ -135,6 +151,7 @@ fun ShelfScreen(
                     selected = uiState.selected,
                     shuffling = uiState.shuffling,
                     onBookClick = onBookClick,
+                    bottomPadding = bottomBar + navigationBar + GRID_END_GAP,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -292,8 +309,8 @@ private fun ShelfTopBar(
 }
 
 /**
- * The covers in a three column grid. While [shuffling] the covers tumble to their mixed up
- * places, and when it ends they snap back.
+ * The covers in a three column grid, ending [bottomPadding] above the bottom of the screen.
+ * While [shuffling] the covers tumble to their mixed up places, and when it ends they snap back.
  */
 @Composable
 private fun BookGrid(
@@ -302,6 +319,7 @@ private fun BookGrid(
     selected: Set<String>,
     shuffling: Boolean,
     onBookClick: (String) -> Unit,
+    bottomPadding: Dp,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
@@ -332,7 +350,7 @@ private fun BookGrid(
         columns = GridCells.Fixed(3),
         state = gridState,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 128.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomPadding),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         // with the progress line kept to its text, this leaves rows about as far apart as the
         // columns

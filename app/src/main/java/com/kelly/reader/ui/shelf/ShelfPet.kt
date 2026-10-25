@@ -86,6 +86,11 @@ private val LEDGE_HEIGHT = 14.dp
 private val LEDGE_TOP_HEIGHT = 3.dp
 private val LEDGE_SHADE_HEIGHT = 6.dp
 
+/**
+ * How far the ledge reaches up from the navigation bar, shade included.
+ */
+internal val LEDGE_TOTAL_HEIGHT = LEDGE_SHADE_HEIGHT + LEDGE_TOP_HEIGHT + LEDGE_HEIGHT
+
 // ----- bear -----
 
 // sizes are measured on the 208 px square the art was cut on and scale with the bear; the
