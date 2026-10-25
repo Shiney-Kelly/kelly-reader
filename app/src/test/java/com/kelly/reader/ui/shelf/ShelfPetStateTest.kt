@@ -3,6 +3,7 @@ package com.kelly.reader.ui.shelf
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -10,8 +11,8 @@ private const val MIN_X = 8f
 private const val MAX_X = 330f
 
 /**
- * Checks the shelf bear's rest, walk, sit and read cycle, its taps, its frames, and how it
- * answers knocks on the ledge.
+ * Checks the shelf bear's rest, walk, sit and read cycle, its taps, its frames, what its bubble
+ * says, and how it answers knocks on the ledge.
  */
 class ShelfPetStateTest {
 
@@ -211,6 +212,36 @@ class ShelfPetStateTest {
     }
 
     @Test
+    fun bubble_sentAwayWhileSitting_saysByeOnceUpForAWhile() {
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertNull(leaving.bubble)
+        val standTicks = ticksFor(PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS)
+        assertNull(leaving.ticks(standTicks - 1).bubble)
+        var state = leaving.ticks(standTicks)
+        val byeEnds = PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS + PET_GREET_MS
+        while (state.elapsedMs < byeEnds) {
+            assertEquals(PetBubble.BYE, state.bubble)
+            state = state.tick(MIN_X, MAX_X, random)
+        }
+        assertEquals(PetMode.LEAVE, state.mode)
+        assertNull(state.bubble)
+    }
+
+    @Test
+    fun bubble_sentAwayWhileWalking_saysByeAtOnce() {
+        val leaving = ShelfPetState(mode = PetMode.WALK, x = 300f)
+            .onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertEquals(PetBubble.BYE, leaving.bubble)
+    }
+
+    @Test
+    fun bubble_sittingWalkingOrReading_onlyReadingSaysSomething() {
+        assertNull(ShelfPetState().bubble)
+        assertNull(ShelfPetState(mode = PetMode.WALK).bubble)
+        assertEquals(PetBubble.READING, ShelfPetState(mode = PetMode.READ).bubble)
+    }
+
+    @Test
     fun onTapAndLongPress_whileLeaving_changeNothing() {
         val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
         assertEquals(leaving, leaving.onTap())
@@ -346,6 +377,20 @@ class ShelfPetStateTest {
         assertEquals(PetMode.ENTER, walking.mode)
         assertTrue(walking.x > start.x)
         assertEquals(PetFrame.WALK_2, walking.frame())
+    }
+
+    @Test
+    fun bubble_entering_saysHelloFromThePeekForAWhile() {
+        val start = enteringPet(fromLeft = true, ledgeWidth = 392f, petSize = 78f)
+        assertNull(start.bubble)
+        var state = start.ticks(ticksFor(PET_ANSWER_MS))
+        while (state.elapsedMs < PET_ANSWER_MS + PET_GREET_MS) {
+            assertEquals(PetBubble.HELLO, state.bubble)
+            state = state.tick(MIN_X, MAX_X, random)
+        }
+        // still walking in when it stops
+        assertEquals(PetMode.ENTER, state.mode)
+        assertNull(state.bubble)
     }
 
     @Test

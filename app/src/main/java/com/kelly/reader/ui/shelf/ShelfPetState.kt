@@ -52,6 +52,12 @@ const val PET_PEEK_SHARE = 0.45f
 // frames a tick so its feet keep up; it gets up first if it was sitting
 const val PET_LEAVE_STEPS = 2
 
+// ----- hello and bye -----
+
+// a bubble says hello from the moment the bear peeks in after the knocks, and bye once it is up
+// to leave after a long press, each for a little while as it walks on
+const val PET_GREET_MS = 2_400L
+
 // ----- paw print hint -----
 
 // while the bear is hidden, now and then a trail of faint paw prints crosses the ledge: a print
@@ -77,6 +83,12 @@ private const val STAND_UP_MS = PET_CROUCH_MS + SIT_FRAMES * PET_SIT_FRAME_MS
  * is out of sight it is [GONE].
  */
 enum class PetMode { IDLE, STAND_UP, WALK, SIT_DOWN, READ, ENTER, LEAVE, GONE }
+
+/**
+ * What the bubble over the bear says: [READING] while it reads, [HELLO] as it comes in after the
+ * knocks, [BYE] as it walks off after a long press.
+ */
+enum class PetBubble { READING, HELLO, BYE }
 
 /**
  * One drawing of the bear, facing right. The screen maps each one to its bitmap and mirrors
@@ -368,6 +380,20 @@ data class ShelfPetState(
      */
     val shown: Boolean
         get() = mode != PetMode.GONE && !(mode == PetMode.ENTER && elapsedMs < PET_ANSWER_MS)
+
+    /**
+     * The bubble to show over the bear now, or null for none: reading for as long as it reads,
+     * hello for [PET_GREET_MS] from its peek in, and bye for as long once it is up to leave.
+     */
+    val bubble: PetBubble?
+        get() = when {
+            mode == PetMode.READ -> PetBubble.READING
+            mode == PetMode.ENTER && elapsedMs - PET_ANSWER_MS in 0L until PET_GREET_MS ->
+                PetBubble.HELLO
+            mode == PetMode.LEAVE && elapsedMs - STAND_UP_MS in 0L until PET_GREET_MS ->
+                PetBubble.BYE
+            else -> null
+        }
 
     /**
      * The drawing to show now. With [animate] off the bear holds the first idle or reading
