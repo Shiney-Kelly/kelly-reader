@@ -256,7 +256,9 @@ private fun PageArea(
         fontKey = if (style.fontFamily == LITERATA) ReaderFont.SERIF.key else ReaderFont.SANS.key,
     )
     LaunchedEffect(key) {
-        if (size.width > 0 && size.height > 0) {
+        // the key's own size, not the latest one: by the time this runs the area may be measured
+        // while the key still says 0x0, and a measurer would be filed under the wrong key
+        if (key.widthPx > 0 && key.heightPx > 0) {
             // a measurer of its own per run, with no cache, so a run being cancelled and the
             // next one never share state across threads
             val textMeasurer = TextMeasurer(fontFamilyResolver, density, layoutDirection, cacheSize = 0)
