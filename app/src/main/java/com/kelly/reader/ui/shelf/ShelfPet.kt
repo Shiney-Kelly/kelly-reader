@@ -245,7 +245,7 @@ fun ShelfPet(
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 animate = ValueAnimator.areAnimatorsEnabled()
                 while (true) {
-                    delay(if (pet.onFeet) PET_WALK_TICK_MS else PET_TICK_MS)
+                    delay(pet.tickMs)
                     pet = pet.tick(PET_MARGIN.value, maxX, Random.Default, animate)
                 }
             }

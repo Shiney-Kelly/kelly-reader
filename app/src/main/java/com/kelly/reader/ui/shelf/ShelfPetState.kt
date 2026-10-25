@@ -179,7 +179,7 @@ data class ShelfPetState(
 ) {
 
     /**
-     * The state one [PET_TICK_MS] later, on a ledge where the bear's left edge may go from
+     * The state one tick ([tickMs]) later, on a ledge where the bear's left edge may go from
      * [minX] to [maxX]. [random] picks the next rest. With [animate] off, as when the system
      * removes animations, the bear never gets up and one that is on its feet sits at once; a
      * tap still makes it read.
@@ -187,7 +187,7 @@ data class ShelfPetState(
     fun tick(minX: Float, maxX: Float, random: Random, animate: Boolean = true): ShelfPetState {
         val high = maxOf(minX, maxX)
         val here = x.coerceIn(minX, high)
-        val time = elapsedMs + PET_TICK_MS
+        val time = elapsedMs + tickMs
         if (mode == PetMode.GONE) return this
         // with animations off a bear sent away is gone at once
         if (mode == PetMode.LEAVE && !animate) return copy(mode = PetMode.GONE)
@@ -346,8 +346,7 @@ data class ShelfPetState(
 
     /**
      * Whether the bear is taking steps now: walking, walking in after its peek, or walking off
-     * once it has got up. Its ticks come every [PET_WALK_TICK_MS] then, else every
-     * [PET_TICK_MS].
+     * once it has got up.
      */
     val onFeet: Boolean
         get() = when (mode) {
@@ -356,6 +355,13 @@ data class ShelfPetState(
             PetMode.LEAVE -> elapsedMs >= STAND_UP_MS
             else -> false
         }
+
+    /**
+     * How long the next tick lasts: [PET_WALK_TICK_MS] while the bear is [onFeet], else
+     * [PET_TICK_MS]. The screen waits this long between ticks, and [elapsedMs] grows by it.
+     */
+    val tickMs: Long
+        get() = if (onFeet) PET_WALK_TICK_MS else PET_TICK_MS
 
     /**
      * Whether the bear is drawn: not while it waits to answer a knock, nor once it is gone.

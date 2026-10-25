@@ -162,6 +162,16 @@ class ShelfPetStateTest {
     }
 
     @Test
+    fun tick_onFeet_countsTheShorterWalkTick() {
+        val walking = ShelfPetState(mode = PetMode.WALK, x = 100f, elapsedMs = 1_000L)
+        assertEquals(PET_WALK_TICK_MS, walking.tickMs)
+        assertEquals(1_000L + PET_WALK_TICK_MS, walking.ticks(1).elapsedMs)
+        val sitting = ShelfPetState(idleForMs = PET_MAX_IDLE_MS)
+        assertEquals(PET_TICK_MS, sitting.tickMs)
+        assertEquals(PET_TICK_MS, sitting.ticks(1).elapsedMs)
+    }
+
+    @Test
     fun onLongPress_sittingOnTheLeft_getsUpWalksOffLeftAndIsGone() {
         val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
         assertEquals(PetMode.LEAVE, leaving.mode)
