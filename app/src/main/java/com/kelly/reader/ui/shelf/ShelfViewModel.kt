@@ -108,6 +108,14 @@ class ShelfViewModel(
     }
 
     /**
+     * Hides the shelf bear again, after a long press sent it off the ledge; knocks bring it back.
+     */
+    fun onPetLeft() {
+        _uiState.update { it.copy(petFound = false) }
+        viewModelScope.launch { settingsRepository.setShelfPetFound(false) }
+    }
+
+    /**
      * Mixes up the covers after a long shake and puts them back after [SHUFFLE_MS]. Does nothing
      * in edit mode, with fewer than two books, or while the covers are already mixed up.
      */

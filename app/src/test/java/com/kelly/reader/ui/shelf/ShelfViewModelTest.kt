@@ -235,4 +235,15 @@ class ShelfViewModelTest {
         assertTrue(settings.petFound.value)
         assertTrue(viewModel.uiState.value.petFound)
     }
+
+    @Test
+    fun onPetLeft_bearShown_hidesAndSavesIt() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(shelfPetFound = true)
+        val viewModel = viewModel(settingsRepository = settings)
+        viewModel.onPetLeft()
+        assertFalse(viewModel.uiState.value.petFound)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertFalse(settings.petFound.value)
+        assertFalse(viewModel.uiState.value.petFound)
+    }
 }
