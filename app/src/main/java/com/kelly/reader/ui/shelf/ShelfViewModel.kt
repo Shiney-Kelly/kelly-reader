@@ -7,20 +7,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.SettingsRepository
+import com.kelly.reader.domain.BookSort
 
 // the covers tumble for under a second, then stay mixed up for about a second
 const val SHUFFLE_MS = 1_800L
 
 /**
- * State for the bookshelf: the books from the repository plus the edit mode, the selection, the
- * shuffle after a shake and whether the shelf bear has been found. [random] picks the shuffled
- * order.
+ * State for the bookshelf: the books from the repository in the stored order, plus the edit
+ * mode, the selection, the shuffle after a shake and whether the shelf bear has been found.
+ * [random] picks the shuffled order.
  */
 class ShelfViewModel(
     private val bookRepository: BookRepository,
@@ -33,12 +35,15 @@ class ShelfViewModel(
 
     init {
         viewModelScope.launch {
-            bookRepository.observeBooks().collect { books ->
+            combine(bookRepository.observeBooks(), settingsRepository.shelfSort) { books, sort ->
+                sort to sort.sort(books)
+            }.collect { (sort, books) ->
                 _uiState.update { state ->
                     // drop selections of books that are gone, and leave edit mode on an empty shelf
                     val ids = books.map { it.id }.toSet()
                     state.copy(
                         books = books,
+                        sort = sort,
                         selected = state.selected intersect ids,
                         editing = state.editing && books.isNotEmpty(),
                     )
@@ -50,6 +55,13 @@ class ShelfViewModel(
                 _uiState.update { it.copy(petFound = found) }
             }
         }
+    }
+
+    /**
+     * Shows the books in [sort] order from now on.
+     */
+    fun setSort(sort: BookSort) {
+        viewModelScope.launch { settingsRepository.setShelfSort(sort) }
     }
 
     fun startEditing() {
