@@ -424,9 +424,9 @@ private fun BookGrid(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomPadding),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        // with the progress line kept to its text, this leaves rows a little farther apart than
+        // with the progress line kept to its text, this leaves rows clearly farther apart than
         // the columns, so each row's progress line reads as its own
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         items(books, key = { it.id }) { book ->
             BookItem(
