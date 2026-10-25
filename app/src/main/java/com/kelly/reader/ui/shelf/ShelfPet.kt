@@ -134,14 +134,25 @@ private val PET_SHADOW_WIDTH = canvas(160)
 private val PET_SHADOW_HEIGHT = canvas(28)
 
 // the bubble sits a little above the reading bear's head (11 px down the canvas, in the seated
-// pose), a little right of its middle
+// pose), its pointed corner over the head: a little right of the middle of the art, so a little
+// left of it when the bear faces left and the art is mirrored
 private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(11) + 3.dp
-private val BUBBLE_SHIFT = canvas(120)
-private val BUBBLE_SHAPE = RoundedCornerShape(
+private val HEAD_X = canvas(120)
+private val HEAD_X_MIRRORED = canvas(CANVAS_PX - 120)
+
+// the bubble opens away from the nearer screen edge: to the right of the head, pointing down
+// to its left, or to the left of it, pointing down to its right
+private val BUBBLE_POINTS_LEFT = RoundedCornerShape(
     topStart = 10.dp,
     topEnd = 10.dp,
     bottomEnd = 10.dp,
     bottomStart = 2.dp,
+)
+private val BUBBLE_POINTS_RIGHT = RoundedCornerShape(
+    topStart = 10.dp,
+    topEnd = 10.dp,
+    bottomEnd = 2.dp,
+    bottomStart = 10.dp,
 )
 
 private val PET_SAVER = listSaver<ShelfPetState, Any>(
@@ -375,6 +386,9 @@ fun ShelfPet(
                 .clickable(interactionSource = null, indication = null) { pet = pet.onTap() },
         )
         if (reading) {
+            val headX = pet.x.dp + if (pet.facingRight) HEAD_X else HEAD_X_MIRRORED
+            val opensRight = headX < maxWidth / 2
+            val shape = if (opensRight) BUBBLE_POINTS_LEFT else BUBBLE_POINTS_RIGHT
             Text(
                 text = stringResource(R.string.shelf_pet_bubble),
                 fontSize = 11.sp,
@@ -384,15 +398,18 @@ fun ShelfPet(
                     .align(Alignment.BottomStart)
                     .padding(bottom = BUBBLE_LIFT + navigationBar)
                     .layout { measurable, bubbleConstraints ->
-                        // beside the bear's head, but never past the end of the screen
+                        // the pointed corner over the head, the bubble on the side with room;
+                        // kept on screen all the same
                         val bubble = measurable.measure(bubbleConstraints)
-                        val wanted = (pet.x.dp + BUBBLE_SHIFT).roundToPx()
-                        val limit = widthPx - bubble.width - PET_MARGIN.roundToPx()
-                        val x = wanted.coerceAtMost(limit).coerceAtLeast(0)
+                        val head = headX.roundToPx()
+                        val wanted = if (opensRight) head else head - bubble.width
+                        val margin = PET_MARGIN.roundToPx()
+                        val limit = (widthPx - bubble.width - margin).coerceAtLeast(margin)
+                        val x = wanted.coerceIn(margin, limit)
                         layout(bubble.width, bubble.height) { bubble.placeRelative(x, 0) }
                     }
-                    .shadow(elevation = 1.dp, shape = BUBBLE_SHAPE)
-                    .background(MaterialTheme.colorScheme.surface, BUBBLE_SHAPE)
+                    .shadow(elevation = 1.dp, shape = shape)
+                    .background(MaterialTheme.colorScheme.surface, shape)
                     .padding(horizontal = 8.dp, vertical = 3.dp)
                     .clearAndSetSemantics {},
             )
