@@ -69,7 +69,6 @@
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_next_page">Next page</string>
     <string name="reader_close_settings">Close settings</string>
-    <string name="reader_page_read">%1$s · %2$s read</string>
     <string name="reader_mode">Reading mode</string>
     <string name="reader_mode_paged">Paged</string>
     <string name="reader_mode_scroll">Scroll</string>
