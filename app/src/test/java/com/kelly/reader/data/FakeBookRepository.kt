@@ -15,6 +15,7 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
     val books = MutableStateFlow(initial)
     val texts = mutableMapOf<String, String>()
     val deleted = mutableListOf<String>()
+    val files = mutableListOf<File>()
 
     override fun observeBooks(): Flow<List<Book>> = books
 
@@ -22,7 +23,7 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
 
     override suspend fun getTitles(): List<String> = books.value.map { it.title }
 
-    override suspend fun newBookFile(): File = File.createTempFile("book", ".txt")
+    override suspend fun newBookFile(): File = File.createTempFile("book", ".txt").also { files += it }
 
     override suspend fun addBook(file: File, title: String, charCount: Int): Book {
         val book = Book(

@@ -15,8 +15,11 @@ class Utf8TextWriterTest {
     private val samples = listOf(
         "The harbor woke slowly that morning.",
         "雨停的时候，山谷里升起了一层薄雾。",
+        "朝から雨が降っていた。",
         "섬의 끝에는 오래된 등대가 있었다.",
+        "Поезд пришёл поздно ночью.",
         "في قرية صغيرة على حافة الصحراء",
+        "छोटी कहानियाँ",
         "﻿a BOM first, a﻿kept one later",
         "windows\r\nlines\r\nand old mac\rlines\r\r\nand\n\rmixed\r",
         "emoji 😀 and 雨\r\n",

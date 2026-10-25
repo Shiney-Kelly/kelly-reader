@@ -26,6 +26,7 @@ import java.net.URLDecoder
 
 import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.TextImport
+import com.kelly.reader.data.Utf8TextWriter
 import com.kelly.reader.domain.Transfer
 import com.kelly.reader.domain.TransferFailure
 import com.kelly.reader.domain.TransferStatus
@@ -101,24 +102,27 @@ class UploadServer(
         setStatus(id, name, size, TransferStatus.Uploading(0))
 
         val file = bookRepository.newBookFile()
-        val received = try {
+        // the text is checked and cleaned as it arrives, so a big file never sits in memory
+        var received = 0L
+        val charCount = try {
             withContext(ioDispatcher) {
                 val channel = call.receiveChannel()
                 val buffer = ByteArray(BUFFER_SIZE)
-                var total = 0L
                 file.outputStream().use { out ->
+                    val text = Utf8TextWriter(out)
                     while (true) {
                         val n = channel.readAvailable(buffer, 0, buffer.size)
                         if (n == -1) break
-                        out.write(buffer, 0, n)
-                        total += n
+                        received += n
+                        // after a bad byte the rest is only read off the connection, unused
+                        if (text.valid) text.write(buffer, n)
                         if (size > 0) {
-                            val percent = (total * 100 / size).toInt().coerceAtMost(99)
+                            val percent = (received * 100 / size).toInt().coerceAtMost(99)
                             setStatus(id, name, size, TransferStatus.Uploading(percent))
                         }
                     }
+                    if (text.valid && text.finish()) text.charCount else null
                 }
-                total
             }
         } catch (e: Exception) {
             file.delete()
@@ -126,15 +130,14 @@ class UploadServer(
             throw e
         }
 
-        val text = withContext(ioDispatcher) { TextImport.prepareFile(file) }
-        if (text == null) {
+        if (charCount == null) {
             file.delete()
             setStatus(id, name, received, TransferStatus.Failed(TransferFailure.NOT_UTF8))
             call.respondText("Not UTF-8 text, skipped", status = HttpStatusCode.UnprocessableEntity)
             return
         }
         val title = TextImport.uniqueTitle(TextImport.titleFrom(name), bookRepository.getTitles())
-        bookRepository.addBook(file, title, text.length)
+        bookRepository.addBook(file, title, charCount)
         setStatus(id, name, file.length(), TransferStatus.Added)
         call.respondText("ok")
     }

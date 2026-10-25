@@ -10,10 +10,9 @@ private const val CHAR_BUFFER_SIZE = 16 * 1024
 private const val BOM = '﻿'
 
 /**
- * Cleans text piece by piece on its way to [out], the same way [TextImport.decodeUtf8] cleans
- * a whole file: it must be strict UTF-8, a BOM at the very start is dropped, and Windows and
- * old Mac line endings become "\n". Only small buffers are held, whatever the size of the
- * text. Hand it the bytes with [write] as they come, then call [finish]; both answer false once
+ * Cleans an uploaded book piece by piece on its way to [out]: it must be strict UTF-8, a BOM
+ * at the very start is dropped, and Windows and old Mac line endings become "\n". Only small
+ * buffers are held, whatever the size of the text. Hand it the bytes with [write] as they come, then call [finish]; both answer false once
  * the bytes are not valid UTF-8. [charCount] is the length of the cleaned text as a Kotlin
  * String counts it. Closing [out] is left to the caller.
  */

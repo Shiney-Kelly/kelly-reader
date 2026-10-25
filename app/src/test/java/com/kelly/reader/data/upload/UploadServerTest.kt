@@ -5,6 +5,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -107,6 +108,36 @@ class UploadServerTest {
         val transfer = server.transfers.value.single()
         assertEquals(TransferStatus.Failed(TransferFailure.NOT_UTF8), transfer.status)
         assertTrue(repository.books.value.isEmpty())
+    }
+
+    @Test
+    fun post_bomAndWindowsLines_storedClean() {
+        val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+        val (code, _) = post("clean.txt", bom + "x\r\ny\rz".toByteArray())
+        assertEquals(200, code)
+        assertEquals(5, repository.books.value.single().charCount)
+        assertEquals("x\ny\nz", repository.files.single().readText())
+    }
+
+    @Test
+    fun post_bodyOfManyPieces_keepsEveryChar() {
+        val line = "雨停的时候，山谷里升起了一层薄雾。The fog lifted.\r\n"
+        val text = line.repeat(20_000) // about 1.2 MB, many 64 KB pieces
+        val (code, _) = post("long.txt", text.toByteArray(Charsets.UTF_8))
+        assertEquals(200, code)
+        val cleaned = text.replace("\r\n", "\n")
+        assertEquals(cleaned.length, repository.books.value.single().charCount)
+        assertEquals(cleaned, repository.files.single().readText())
+    }
+
+    @Test
+    fun post_badByteLate_isRejectedWith422AndFileDeleted() {
+        val good = "a".repeat(200_000).toByteArray()
+        val (code, message) = post("late.txt", good + byteArrayOf(0xFF.toByte()) + good)
+        assertEquals(422, code)
+        assertTrue(message.contains("Not UTF-8"))
+        assertTrue(repository.books.value.isEmpty())
+        assertFalse(repository.files.single().exists())
     }
 
     @Test
