@@ -93,6 +93,37 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun init_textStillReading_showsPageFromSavedList() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5, progress = 0.5f))
+        pageCache.save("b1", "k", intArrayOf(0, 4, 8))
+        val gate = CompletableDeferred<Unit>()
+        repository.readTextGate = gate
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        val loading = viewModel.uiState.value
+        assertEquals(null, loading.book)
+        assertEquals(2, loading.labelPage)
+        assertEquals(3, loading.labelPageCount)
+
+        gate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+        val read = viewModel.uiState.value
+        assertEquals(2, read.labelPage)
+        assertEquals(3, read.labelPageCount)
+    }
+
+    @Test
+    fun init_textStillReading_layoutNeverCounted_pageUnknown() = runTest(dispatcher) {
+        repository.readTextGate = CompletableDeferred()
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("never-counted", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.labelPage)
+        assertEquals(null, viewModel.uiState.value.labelPageCount)
+    }
+
+    @Test
     fun init_countsTodayAsReadingDay() = runTest(dispatcher) {
         viewModel()
         assertEquals(1, settings.streak.value.days)

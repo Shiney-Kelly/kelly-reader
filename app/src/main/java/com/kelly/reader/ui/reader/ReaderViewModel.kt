@@ -48,12 +48,17 @@ class ReaderViewModel(
     // text being read does not move under the reader
     private var waitingStarts: IntArray? = null
 
+    // the reading spot saved in the book's row, known before its text
+    private var savedSpot: Int? = null
+
     init {
         viewModelScope.launch {
             val book = bookRepository.getBook(bookId) ?: return@launch
             // the saved percentage shows while a big book's text is still being read; the book
             // itself goes in with its text, so nothing is paged before the text is there
             _uiState.update { it.copy(savedProgress = book.progress) }
+            savedSpot = book.lastOffset
+            showSavedPage()
             val text = bookRepository.readText(book)
             _uiState.update {
                 it.copy(
@@ -83,7 +88,26 @@ class ReaderViewModel(
         if (key == measurerKey) return
         measurerKey = key
         this.measurer = measurer
+        showSavedPage()
         paginate()
+    }
+
+    /**
+     * While the text is still being read, finds the page of the saved spot in the saved page
+     * list of the current layout, so the page number shows at once. A layout never counted
+     * leaves it unknown. Needs both the spot and the layout, so it runs when the second comes.
+     */
+    private fun showSavedPage() {
+        val key = measurerKey ?: return
+        val spot = savedSpot ?: return
+        if (_uiState.value.book != null) return
+        viewModelScope.launch {
+            val starts = cache[key] ?: pageCache.load(bookId, key)
+            // the text may have come in, or the layout changed, while the list was read
+            if (_uiState.value.book != null || key != measurerKey) return@launch
+            val page = starts?.let { SavedPage(Paginator.pageIndexFor(it, spot) + 1, it.size) }
+            _uiState.update { it.copy(savedPage = page) }
+        }
     }
 
     private fun paginate() {

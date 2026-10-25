@@ -10,11 +10,13 @@ import com.kelly.reader.domain.formatPercent
  * holds it. The page index follows from it and [pageStarts].
  * [pageStarts] is null until the first page has been measured, and [paginationDone] turns
  * true once every page is known. [isRtl] says the text reads right to left. [savedProgress] is
- * the progress saved for the book, shown while its text is still being read.
+ * the progress saved for the book, and [savedPage] its page from the saved page list of this
+ * layout when there is one; both show while the text is still being read.
  */
 data class ReaderUiState(
     val book: Book? = null,
     val savedProgress: Float = 0f,
+    val savedPage: SavedPage? = null,
     val text: String = "",
     val isRtl: Boolean = false,
     val offset: Int = 0,
@@ -78,6 +80,24 @@ data class ReaderUiState(
     val percentLabel: String
         get() = formatPercent(progress)
 
+    /**
+     * The page number for the label, null while not known: the saved page until the book is
+     * in, then the page once the pages before it are measured.
+     */
+    val labelPage: Int?
+        get() = when {
+            book == null -> savedPage?.number
+            pageNumberKnown -> pageIndex + 1
+            else -> null
+        }
+
+    /**
+     * The page count for the label, null while not known: the saved count until the book is
+     * in, then the count once every page is measured.
+     */
+    val labelPageCount: Int?
+        get() = if (book == null) savedPage?.count else pageCount
+
     val hasPreviousPage: Boolean
         get() = pageIndex > 0
 
@@ -90,6 +110,7 @@ data class ReaderUiState(
         if (other !is ReaderUiState) return false
         return book == other.book &&
             savedProgress == other.savedProgress &&
+            savedPage == other.savedPage &&
             text == other.text &&
             isRtl == other.isRtl &&
             offset == other.offset &&
@@ -101,6 +122,7 @@ data class ReaderUiState(
     override fun hashCode(): Int {
         var result = book.hashCode()
         result = 31 * result + savedProgress.hashCode()
+        result = 31 * result + (savedPage?.hashCode() ?: 0)
         result = 31 * result + text.hashCode()
         result = 31 * result + isRtl.hashCode()
         result = 31 * result + offset
@@ -110,3 +132,8 @@ data class ReaderUiState(
         return result
     }
 }
+
+/**
+ * Page [number] of [count], from the saved page list of a layout.
+ */
+data class SavedPage(val number: Int, val count: Int)

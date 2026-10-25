@@ -418,15 +418,16 @@ private fun ScrollingPages(
 
 /**
  * The page as "x/y" once everything is known, "x/…" while the count is still coming, and
- * "…/…" while the pages before the resume point are still coming.
+ * "…/…" while the pages before the resume point are still coming. While the text is still
+ * being read, the saved page list of this layout gives the numbers when there is one.
  */
 @Composable
 fun pageLabel(uiState: ReaderUiState): String {
-    val page = uiState.pageIndex + 1
-    val count = uiState.pageCount
+    val page = uiState.labelPage
+    val count = uiState.labelPageCount
     return when {
-        count != null -> stringResource(R.string.reader_page_of, page, count)
-        uiState.pageNumberKnown -> stringResource(R.string.reader_page_of_unknown, page)
+        page != null && count != null -> stringResource(R.string.reader_page_of, page, count)
+        page != null -> stringResource(R.string.reader_page_of_unknown, page)
         else -> stringResource(R.string.reader_page_unknown)
     }
 }
