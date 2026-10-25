@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import java.io.EOFException
+import java.io.File
 import java.net.ServerSocket
 import java.net.URLDecoder
 
@@ -39,6 +41,13 @@ private const val STOP_GRACE_MS = 500L
 private const val STOP_TIMEOUT_MS = 1_000L
 private const val BUFFER_SIZE = 64 * 1024
 private const val BYTES_PER_MB = 1024L * 1024L
+private const val PART_SUFFIX = ".part"
+
+/**
+ * What came of reading an upload's body: [bytes] read, and [charCount] of the cleaned text,
+ * null when it was not UTF-8 or was [tooBig].
+ */
+private class Received(val bytes: Long, val charCount: Int?, val tooBig: Boolean)
 
 /**
  * The Wi-Fi upload server. Serves [page] at the root and takes one file per `POST /upload`,
@@ -110,55 +119,81 @@ class UploadServer(
         setStatus(id, name, size, TransferStatus.Uploading(0))
 
         val file = bookRepository.newBookFile()
-        // the text is checked and cleaned as it arrives, so a big file never sits in memory
-        var received = 0L
-        var tooBig = false
-        val charCount = try {
-            withContext(ioDispatcher) {
-                val channel = call.receiveChannel()
-                val buffer = ByteArray(BUFFER_SIZE)
-                file.outputStream().use { out ->
-                    val text = Utf8TextWriter(out)
-                    while (true) {
-                        val n = channel.readAvailable(buffer, 0, buffer.size)
-                        if (n == -1) break
-                        received += n
-                        // a body sent without its size can still run past the limit
-                        if (received > maxBytes) {
-                            tooBig = true
-                            break
-                        }
-                        // after a bad byte the rest is only read off the connection, unused
-                        if (text.valid) text.write(buffer, n)
-                        if (size > 0) {
-                            val percent = (received * 100 / size).toInt().coerceAtMost(99)
-                            setStatus(id, name, size, TransferStatus.Uploading(percent))
-                        }
-                    }
-                    if (!tooBig && text.valid && text.finish()) text.charCount else null
-                }
+        // the upload grows under a .part name and takes the book's name only once it is whole
+        // and checked, so a .part file left behind is always an unfinished upload
+        val part = File(file.path + PART_SUFFIX)
+        val body = try {
+            val body = withContext(ioDispatcher) { receiveInto(part, call, id, name, size) }
+            val charCount = body.charCount
+            if (charCount != null) {
+                check(part.renameTo(file)) { "could not move the upload into place" }
+                val titles = bookRepository.getTitles()
+                val title = TextImport.uniqueTitle(TextImport.titleFrom(name), titles)
+                bookRepository.addBook(file, title, charCount)
+            } else {
+                part.delete()
             }
-        } catch (e: Exception) {
+            body
+        } catch (e: Throwable) {
+            // a lost connection, a stopped server or anything else: nothing is left behind
+            part.delete()
             file.delete()
             setStatus(id, name, size, TransferStatus.Failed(TransferFailure.INTERRUPTED))
             throw e
         }
 
-        if (tooBig) {
-            file.delete()
-            turnAwayTooBig(call, id, name, received)
-            return
+        when {
+            body.tooBig -> turnAwayTooBig(call, id, name, body.bytes)
+            body.charCount == null -> {
+                setStatus(id, name, body.bytes, TransferStatus.Failed(TransferFailure.NOT_UTF8))
+                call.respondText(
+                    text = "Not UTF-8 text, skipped",
+                    status = HttpStatusCode.UnprocessableEntity,
+                )
+            }
+            else -> {
+                setStatus(id, name, file.length(), TransferStatus.Added)
+                call.respondText("ok")
+            }
         }
-        if (charCount == null) {
-            file.delete()
-            setStatus(id, name, received, TransferStatus.Failed(TransferFailure.NOT_UTF8))
-            call.respondText("Not UTF-8 text, skipped", status = HttpStatusCode.UnprocessableEntity)
-            return
+    }
+
+    /**
+     * Reads the upload's body into [part], checking and cleaning the text as it arrives, so a
+     * big file never sits in memory. [size] is the stated length, 0 when unknown.
+     */
+    private suspend fun receiveInto(
+        part: File,
+        call: ApplicationCall,
+        id: Int,
+        name: String,
+        size: Long,
+    ): Received {
+        val channel = call.receiveChannel()
+        val buffer = ByteArray(BUFFER_SIZE)
+        var received = 0L
+        part.outputStream().use { out ->
+            val text = Utf8TextWriter(out)
+            while (true) {
+                val n = channel.readAvailable(buffer, 0, buffer.size)
+                if (n == -1) break
+                received += n
+                // a body sent without its size can still run past the limit
+                if (received > maxBytes) return Received(received, charCount = null, tooBig = true)
+                // after a bad byte the rest is only read off the connection, unused
+                if (text.valid) text.write(buffer, n)
+                if (size > 0) {
+                    val percent = (received * 100 / size).toInt().coerceAtMost(99)
+                    setStatus(id, name, size, TransferStatus.Uploading(percent))
+                }
+            }
+            // a connection closed early can end the body short of its stated size
+            if (size > 0 && received < size) {
+                throw EOFException("body ended after $received of $size bytes")
+            }
+            val charCount = if (text.valid && text.finish()) text.charCount else null
+            return Received(received, charCount, tooBig = false)
         }
-        val title = TextImport.uniqueTitle(TextImport.titleFrom(name), bookRepository.getTitles())
-        bookRepository.addBook(file, title, charCount)
-        setStatus(id, name, file.length(), TransferStatus.Added)
-        call.respondText("ok")
     }
 
     private suspend fun turnAwayTooBig(call: ApplicationCall, id: Int, name: String, size: Long) {

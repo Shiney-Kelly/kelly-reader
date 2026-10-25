@@ -23,7 +23,9 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
 
     override suspend fun getTitles(): List<String> = books.value.map { it.title }
 
-    override suspend fun newBookFile(): File = File.createTempFile("book", ".txt").also { files += it }
+    // a free name only, like the real one: the upload makes the file
+    override suspend fun newBookFile(): File =
+        File.createTempFile("book", ".txt").also { it.delete(); files += it }
 
     override suspend fun addBook(file: File, title: String, charCount: Int): Book {
         val book = Book(

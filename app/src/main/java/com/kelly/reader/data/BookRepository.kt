@@ -33,8 +33,8 @@ interface BookRepository {
     suspend fun getTitles(): List<String>
 
     /**
-     * A fresh file in the books folder for an upload to stream into. Nothing is recorded until
-     * [addBook] is called with it.
+     * A fresh, unused file name in the books folder for an upload; the file itself is made by
+     * the upload. Nothing is recorded until [addBook] is called with it.
      */
     suspend fun newBookFile(): File
 

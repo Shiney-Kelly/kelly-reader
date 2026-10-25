@@ -9,7 +9,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 import java.net.HttpURLConnection
+import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
 
@@ -183,6 +185,35 @@ class UploadServerTest {
         } finally {
             small.stop()
         }
+    }
+
+    @Test
+    fun post_added_leavesNoPartFile() {
+        post("whole.txt", "whole".toByteArray())
+        val file = repository.files.single()
+        assertTrue(file.exists())
+        assertFalse(File(file.path + ".part").exists())
+    }
+
+    @Test
+    fun post_connectionClosedEarly_isInterruptedAndLeavesNothing() = runBlocking {
+        Socket("127.0.0.1", port).use { socket ->
+            val head = "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nX-File-Name: cut.txt\r\n" +
+                "Content-Length: 100000\r\nConnection: close\r\n\r\n"
+            socket.getOutputStream().apply {
+                write(head.toByteArray())
+                write(ByteArray(30_000) { 'a'.code.toByte() })
+                flush()
+            }
+        }
+        val transfer = withTimeout(5_000) {
+            server.transfers.first { list -> list.any { it.isFailed } }
+        }.single()
+        assertEquals(TransferStatus.Failed(TransferFailure.INTERRUPTED), transfer.status)
+        assertTrue(repository.books.value.isEmpty())
+        val file = repository.files.single()
+        assertFalse(file.exists())
+        assertFalse(File(file.path + ".part").exists())
     }
 
     @Test
