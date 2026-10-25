@@ -83,6 +83,7 @@ fun ReaderRoute(
             onReadingMode = viewModel::setReadingMode,
             onTextAlignment = viewModel::setTextAlignment,
             onProgressLabel = viewModel::setProgressLabel,
+            onJump = viewModel::jumpTo,
         ),
         onSettingsClick = { drawerOpen = true },
         onCloseSettings = { drawerOpen = false },

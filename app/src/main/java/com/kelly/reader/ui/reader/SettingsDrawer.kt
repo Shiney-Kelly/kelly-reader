@@ -29,9 +29,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.LineSpacing
@@ -51,6 +56,7 @@ import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.TextAlignment
+import com.kelly.reader.domain.formatPercent
 import com.kelly.reader.ui.components.AppIcons
 import com.kelly.reader.ui.theme.AppTheme
 import com.kelly.reader.ui.theme.FIGTREE
@@ -76,10 +82,11 @@ data class SettingsActions(
     val onReadingMode: (ReadingMode) -> Unit,
     val onTextAlignment: (TextAlignment) -> Unit,
     val onProgressLabel: (ProgressLabel) -> Unit,
+    val onJump: (Float) -> Unit,
 ) {
 
     companion object {
-        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {}, {})
+        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -146,6 +153,7 @@ private fun DrawerPanel(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         DrawerHeader(onClose = onClose)
+        PositionSection(uiState = uiState, onJump = actions.onJump)
         ReadingModeSection(selected = uiState.settings.readingMode, onPick = actions.onReadingMode)
         ProgressLabelSection(
             selected = uiState.settings.progressLabel,
@@ -158,6 +166,53 @@ private fun DrawerPanel(
         ThemeSection(selectedKey = uiState.settings.themeKey, onPick = actions.onTheme)
         Spacer(modifier = Modifier.weight(1f))
         BackToShelfButton(onClick = onBackToShelf)
+    }
+}
+
+/**
+ * Where the reader is, as a slider over the whole book. While it is dragged the label shows
+ * where it would go, in percent, or as a page when the footer shows pages and every page is
+ * known; letting go jumps there.
+ */
+@Composable
+private fun PositionSection(uiState: ReaderUiState, onJump: (Float) -> Unit) {
+    var dragged by remember { mutableStateOf<Float?>(null) }
+    val shown = dragged ?: uiState.progress
+    val count = uiState.pageCount
+    val label = if (uiState.settings.progressLabel == ProgressLabel.PAGE && count != null) {
+        val page = (shown * count).roundToInt().coerceIn(1, count)
+        stringResource(R.string.reader_page_of, page, count)
+    } else {
+        formatPercent(shown)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.reader_position),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Slider(
+            value = shown,
+            onValueChange = { dragged = it },
+            onValueChangeFinished = {
+                dragged?.let(onJump)
+                dragged = null
+            },
+            enabled = uiState.book != null,
+        )
     }
 }
 
