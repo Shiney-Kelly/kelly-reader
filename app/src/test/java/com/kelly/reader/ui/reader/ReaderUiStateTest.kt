@@ -71,9 +71,21 @@ class ReaderUiStateTest {
     }
 
     @Test
-    fun percent_beforeDone_usesChars() {
+    fun percent_beforeDone_usesCharsToTheEndOfThePage() {
         val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(0, 4, 8))
-        assertEquals("50.00%", state.percentLabel)
+        assertEquals("80.00%", state.percentLabel)
+        // the first page counts as read, as it does by page, so a new count does not show 0%
+        assertEquals("40.00%", state.copy(offset = 0).percentLabel)
+    }
+
+    @Test
+    fun percent_beforeDone_pageEndNotKnown_usesTheOffset() {
+        // the last page known so far: its end is still being measured
+        val last = ReaderUiState(text = text, offset = 8, pageStarts = intArrayOf(0, 4, 8))
+        assertEquals("80.00%", last.percentLabel)
+        // jumped before the pages measured from a later spot
+        val before = ReaderUiState(text = text, offset = 2, pageStarts = intArrayOf(5, 9))
+        assertEquals("20.00%", before.percentLabel)
     }
 
     @Test
