@@ -11,12 +11,13 @@ enum class BookSort(val key: String) {
     LAST_READ("last_read"),
     ADDED_NEWEST("added_newest"),
     ADDED_OLDEST("added_oldest"),
-    TITLE_A_TO_Z("title");
+    TITLE_A_TO_Z("title"),
+    TITLE_Z_TO_A("title_z_to_a");
 
     /**
      * [books] in this order. Last read puts books never opened after the rest, newest added
-     * first; titles follow [collator], the phone's language rules by default. Ties keep the
-     * order the books were added in.
+     * first; titles follow [collator], the phone's language rules by default, either way round.
+     * Ties keep the order the books were added in.
      */
     fun sort(books: List<Book>, collator: Collator = Collator.getInstance()): List<Book> =
         when (this) {
@@ -28,6 +29,9 @@ enum class BookSort(val key: String) {
             ADDED_OLDEST -> books.sortedBy { it.addedAt }
             TITLE_A_TO_Z -> books.sortedWith(
                 compareBy<Book, String>(collator) { it.title }.thenBy { it.addedAt },
+            )
+            TITLE_Z_TO_A -> books.sortedWith(
+                compareBy<Book, String>(collator.reversed()) { it.title }.thenBy { it.addedAt },
             )
         }
 
