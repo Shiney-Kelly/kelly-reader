@@ -4,7 +4,7 @@ import java.text.Collator
 
 /**
  * The orders the shelf can show its books in. [key] is what the settings store; an unknown or
- * missing key means [ADDED_OLDEST], the order the shelf always had. [TITLE_A_TO_Z] keeps the
+ * missing key means [LAST_READ], so the books being read come first. [TITLE_A_TO_Z] keeps the
  * key it had when it was the only title order.
  */
 enum class BookSort(val key: String) {
@@ -40,6 +40,6 @@ enum class BookSort(val key: String) {
         /**
          * Returns the order stored under [key], or the default for an unknown key.
          */
-        fun fromKey(key: String?): BookSort = entries.firstOrNull { it.key == key } ?: ADDED_OLDEST
+        fun fromKey(key: String?): BookSort = entries.firstOrNull { it.key == key } ?: LAST_READ
     }
 }

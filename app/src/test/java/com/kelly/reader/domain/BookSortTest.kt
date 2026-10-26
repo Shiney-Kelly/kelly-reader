@@ -59,7 +59,7 @@ class BookSortTest {
         assertEquals(BookSort.LAST_READ, BookSort.fromKey("last_read"))
         assertEquals(BookSort.TITLE_A_TO_Z, BookSort.fromKey("title"))
         assertEquals(BookSort.TITLE_Z_TO_A, BookSort.fromKey("title_z_to_a"))
-        assertEquals(BookSort.ADDED_OLDEST, BookSort.fromKey("by_color"))
-        assertEquals(BookSort.ADDED_OLDEST, BookSort.fromKey(null))
+        assertEquals(BookSort.LAST_READ, BookSort.fromKey("by_color"))
+        assertEquals(BookSort.LAST_READ, BookSort.fromKey(null))
     }
 }

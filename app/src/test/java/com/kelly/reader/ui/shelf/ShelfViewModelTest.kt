@@ -44,9 +44,12 @@ class ShelfViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // most tests read the books in the order they were added, b1 to b3
     private fun viewModel(
         bookRepository: FakeBookRepository = FakeBookRepository(books),
-        settingsRepository: FakeSettingsRepository = FakeSettingsRepository(),
+        settingsRepository: FakeSettingsRepository = FakeSettingsRepository().apply {
+            sort.value = BookSort.ADDED_OLDEST
+        },
     ): ShelfViewModel = ShelfViewModel(bookRepository, settingsRepository).also {
         dispatcher.scheduler.advanceUntilIdle()
     }
@@ -56,6 +59,17 @@ class ShelfViewModelTest {
         val viewModel = viewModel()
         assertEquals(books, viewModel.uiState.value.books)
         assertFalse(viewModel.uiState.value.editing)
+    }
+
+    @Test
+    fun init_noOrderPicked_lastReadFirstThenNewestAdded() = runTest(dispatcher) {
+        val read = books.map { if (it.id == "b1") it.copy(openedAt = 10L) else it }
+        val viewModel = viewModel(
+            bookRepository = FakeBookRepository(read),
+            settingsRepository = FakeSettingsRepository(),
+        )
+        assertEquals(BookSort.LAST_READ, viewModel.uiState.value.sort)
+        assertEquals(listOf("b1", "b3", "b2"), viewModel.uiState.value.books?.map { it.id })
     }
 
     @Test

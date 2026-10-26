@@ -11,7 +11,7 @@ import com.kelly.reader.domain.BookSort
  */
 data class ShelfUiState(
     val books: List<Book>? = null,
-    val sort: BookSort = BookSort.ADDED_OLDEST,
+    val sort: BookSort = BookSort.LAST_READ,
     val editing: Boolean = false,
     val selected: Set<String> = emptySet(),
     val shuffledIds: List<String>? = null,
