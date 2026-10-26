@@ -41,18 +41,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.TextAlignment
 import com.kelly.reader.ui.components.AppIcons
-import com.kelly.reader.ui.components.ProgressBar
 import com.kelly.reader.ui.theme.AppTheme
 import com.kelly.reader.ui.theme.FIGTREE
 import com.kelly.reader.ui.theme.LITERATA
@@ -76,16 +75,17 @@ data class SettingsActions(
     val onTheme: (ReaderTheme?) -> Unit,
     val onReadingMode: (ReadingMode) -> Unit,
     val onTextAlignment: (TextAlignment) -> Unit,
+    val onProgressLabel: (ProgressLabel) -> Unit,
 ) {
 
     companion object {
-        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {})
+        val NONE = SettingsActions({}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
 /**
- * The reading settings drawer: slides in from the right over a scrim, with the book card,
- * the controls and the back to shelf button.
+ * The reading settings drawer: slides in from the right over a scrim, with the controls and
+ * the back to shelf button.
  */
 @Composable
 fun SettingsDrawer(
@@ -146,8 +146,11 @@ private fun DrawerPanel(
         verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         DrawerHeader(onClose = onClose)
-        BookCard(uiState = uiState)
         ReadingModeSection(selected = uiState.settings.readingMode, onPick = actions.onReadingMode)
+        ProgressLabelSection(
+            selected = uiState.settings.progressLabel,
+            onPick = actions.onProgressLabel,
+        )
         TextSizeSection(fontSize = uiState.settings.fontSize, actions = actions)
         AlignmentSection(selected = uiState.settings.textAlignment, onPick = actions.onTextAlignment)
         LineSpacingSection(selected = uiState.settings.lineSpacing, onPick = actions.onLineSpacing)
@@ -183,6 +186,22 @@ private fun ReadingModeSection(selected: ReadingMode, onPick: (ReadingMode) -> U
                     label = stringResource(mode.labelRes),
                     selected = mode == selected,
                     onClick = { onPick(mode) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressLabelSection(selected: ProgressLabel, onPick: (ProgressLabel) -> Unit) {
+    DrawerSection(label = stringResource(R.string.reader_progress)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ProgressLabel.entries.forEach { label ->
+                SegmentButton(
+                    label = stringResource(label.labelRes),
+                    selected = label == selected,
+                    onClick = { onPick(label) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -361,6 +380,12 @@ private val ReadingMode.labelRes: Int
         ReadingMode.SCROLL -> R.string.reader_mode_scroll
     }
 
+private val ProgressLabel.labelRes: Int
+    get() = when (this) {
+        ProgressLabel.PERCENT -> R.string.reader_progress_percent
+        ProgressLabel.PAGE -> R.string.reader_progress_page
+    }
+
 private val ReaderFont.labelRes: Int
     get() = when (this) {
         ReaderFont.SERIF -> R.string.reader_font_serif
@@ -398,36 +423,6 @@ private fun DrawerHeader(onClose: () -> Unit) {
                 modifier = Modifier.size(22.dp),
             )
         }
-    }
-}
-
-/**
- * The current book: title, a progress bar and "Page x of y · NN% read".
- */
-@Composable
-private fun BookCard(uiState: ReaderUiState) {
-    val pageLabel = pageLabel(uiState)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(AppTheme.colors.tint2)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = uiState.book?.title ?: "",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            style = TextStyle(textDirection = TextDirection.Content),
-        )
-        ProgressBar(progress = uiState.progress, height = 4.dp)
-        Text(
-            text = stringResource(R.string.reader_page_read, pageLabel, uiState.percentLabel),
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

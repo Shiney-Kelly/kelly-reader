@@ -1,17 +1,12 @@
 /*
- * Turning an uploaded file into book text: UTF-8 check, BOM strip, newline cleanup and title.
+ * Uploaded file names: the .txt check and the book title. The text itself is checked and
+ * cleaned while it arrives, by Utf8TextWriter.
  */
 package com.kelly.reader.data
-
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
-import java.nio.charset.CodingErrorAction
 
 object TextImport {
 
     private const val TXT_EXTENSION = ".txt"
-    private const val BOM = '﻿'
 
     /**
      * True when [fileName] ends in ".txt", in any case.
@@ -35,33 +30,5 @@ object TextImport {
         var n = 2
         while ("$title ($n)" in existing) n++
         return "$title ($n)"
-    }
-
-    /**
-     * Decodes [bytes] as strict UTF-8, drops a leading BOM and turns Windows and old Mac line
-     * endings into "\n". Returns null when the bytes are not valid UTF-8.
-     */
-    fun decodeUtf8(bytes: ByteArray): String? {
-        val decoder = Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-        val text = try {
-            decoder.decode(ByteBuffer.wrap(bytes)).toString()
-        } catch (e: CharacterCodingException) {
-            return null
-        }
-        return text.removePrefix(BOM.toString()).replace("\r\n", "\n").replace('\r', '\n')
-    }
-
-    /**
-     * Reads [file], decodes it with [decodeUtf8] and writes the cleaned text back when it
-     * changed, so later reads are plain. Returns the text, or null for a file that is not UTF-8.
-     */
-    fun prepareFile(file: File): String? {
-        val bytes = file.readBytes()
-        val text = decodeUtf8(bytes) ?: return null
-        val cleaned = text.toByteArray(Charsets.UTF_8)
-        if (!cleaned.contentEquals(bytes)) file.writeBytes(cleaned)
-        return text
     }
 }

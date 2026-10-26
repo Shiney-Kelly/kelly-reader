@@ -15,6 +15,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
@@ -60,6 +61,8 @@ interface SettingsRepository {
 
     suspend fun setTextAlignment(alignment: TextAlignment)
 
+    suspend fun setProgressLabel(label: ProgressLabel)
+
     /**
      * The days in a row a book has been opened.
      */
@@ -96,6 +99,7 @@ class DataStoreSettingsRepository(
             themeKey = prefs[THEME],
             readingMode = ReadingMode.fromKey(prefs[READING_MODE]),
             textAlignment = TextAlignment.fromKey(prefs[TEXT_ALIGNMENT]),
+            progressLabel = ProgressLabel.fromKey(prefs[PROGRESS_LABEL]),
         )
     }
 
@@ -128,6 +132,10 @@ class DataStoreSettingsRepository(
 
     override suspend fun setTextAlignment(alignment: TextAlignment) {
         dataStore.edit { prefs -> prefs[TEXT_ALIGNMENT] = alignment.key }
+    }
+
+    override suspend fun setProgressLabel(label: ProgressLabel) {
+        dataStore.edit { prefs -> prefs[PROGRESS_LABEL] = label.key }
     }
 
     override val readingStreak: Flow<ReadingStreak> = dataStore.data.map { prefs -> prefs.streak() }
@@ -167,6 +175,7 @@ class DataStoreSettingsRepository(
         val THEME = stringPreferencesKey("reader_theme")
         val READING_MODE = stringPreferencesKey("reading_mode")
         val TEXT_ALIGNMENT = stringPreferencesKey("text_alignment")
+        val PROGRESS_LABEL = stringPreferencesKey("progress_label")
         val STREAK_DAYS = intPreferencesKey("streak_days")
         // the last reading day as days since 1970-01-01, which is what LocalDate keeps inside
         val STREAK_LAST_DAY = longPreferencesKey("streak_last_day")

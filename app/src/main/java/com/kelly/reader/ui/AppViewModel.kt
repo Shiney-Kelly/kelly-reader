@@ -2,6 +2,7 @@ package com.kelly.reader.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,7 @@ import com.kelly.reader.data.SettingsRepository
 /**
  * Decides where the app starts: the reader when a recent book still exists, else the shelf.
  * Starting in the reader opens a book, so it counts as a reading day right away, in time for
- * the splash to show a streak milestone.
+ * the splash to show a streak milestone. It also clears files an earlier run left behind.
  */
 class AppViewModel(
     private val settingsRepository: SettingsRepository,
@@ -50,6 +51,18 @@ class AppViewModel(
             val book = recentId?.let { bookRepository.getBook(it) }
             _startRoute.value = if (book != null) Routes.reader(book.id) else Routes.SHELF
             if (book != null) settingsRepository.recordReadingDay(ZonedDateTime.now(clock))
+        }
+        // an earlier run can leave an upload cut off when the app was killed; files changed
+        // from now on belong to this run and stay
+        val startedAt = clock.millis()
+        viewModelScope.launch {
+            try {
+                bookRepository.deleteOrphanFiles(olderThan = startedAt)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // the books could not be read, so nothing was deleted; the next start tries again
+            }
         }
     }
 }

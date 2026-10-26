@@ -111,13 +111,21 @@
     return name.toLowerCase().endsWith('.txt');
   }
 
-  // files that are not .txt are skipped here, so they never travel to the phone
+  // the same limit the app keeps
+  const MAX_MB = 500;
+
+  // files that are not .txt or are over the limit are skipped here, so they never travel
+  // to the phone
   function enqueue(files) {
     for (const file of files) {
       const li = addRow(file);
       li.file = file;
       if (!isTextFile(file.name)) {
         setStatus(li, 'Not a .txt file, skipped', 'err');
+        continue;
+      }
+      if (file.size > MAX_MB * 1024 * 1024) {
+        setStatus(li, 'Over ' + MAX_MB + ' MB, skipped', 'err');
         continue;
       }
       queue.push(li);

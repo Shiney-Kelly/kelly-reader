@@ -2,8 +2,11 @@ package com.kelly.reader.ui.reader
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+import com.kelly.reader.domain.Book
 
 /**
  * Checks the derived page fields while pagination is still running.
@@ -71,5 +74,45 @@ class ReaderUiStateTest {
     fun percent_beforeDone_usesChars() {
         val state = ReaderUiState(text = text, offset = 5, pageStarts = intArrayOf(0, 4, 8))
         assertEquals("50.00%", state.percentLabel)
+    }
+
+    @Test
+    fun labelPage_bookNotInYet_isSavedPage() {
+        val loading = ReaderUiState(savedPage = SavedPage(26857, 67141))
+        assertEquals(26857, loading.labelPage)
+        assertEquals(67141, loading.labelPageCount)
+        assertNull(ReaderUiState().labelPage)
+        assertNull(ReaderUiState().labelPageCount)
+    }
+
+    @Test
+    fun labelPage_bookIn_followsMeasuredPages() {
+        val book = Book("b1", "Harbor", "b1.txt", 10, text.length, 0)
+        // the text is in but no page yet: still the saved page
+        val textOnly = ReaderUiState(book = book, savedPage = SavedPage(9, 9), text = text)
+        assertEquals(9, textOnly.labelPage)
+        assertEquals(9, textOnly.labelPageCount)
+        val running = ReaderUiState(
+            book = book,
+            savedPage = SavedPage(9, 9),
+            text = text,
+            offset = 5,
+            pageStarts = intArrayOf(0, 4, 8),
+        )
+        assertEquals(2, running.labelPage)
+        assertNull(running.labelPageCount)
+        val done = running.copy(paginationDone = true)
+        assertEquals(2, done.labelPage)
+        assertEquals(3, done.labelPageCount)
+        // measured from the spot first, the pages before it are not known yet
+        assertNull(running.copy(pageStarts = intArrayOf(5, 9)).labelPage)
+    }
+
+    @Test
+    fun percent_textNotReadYet_isSavedProgress() {
+        val loading = ReaderUiState(savedProgress = 0.4114f)
+        assertEquals("41.14%", loading.percentLabel)
+        val read = loading.copy(text = text, offset = 5)
+        assertEquals("50.00%", read.percentLabel)
     }
 }

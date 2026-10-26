@@ -71,6 +71,23 @@ enum class TextAlignment(val key: String) {
 }
 
 /**
+ * What the reader's lower right corner shows: how far into the book in percent, or the page
+ * number. [key] is what the settings store.
+ */
+enum class ProgressLabel(val key: String) {
+    PERCENT("percent"),
+    PAGE("page");
+
+    companion object {
+
+        /**
+         * Returns the label stored under [key], or the default for an unknown key.
+         */
+        fun fromKey(key: String?): ProgressLabel = entries.firstOrNull { it.key == key } ?: PERCENT
+    }
+}
+
+/**
  * Everything the settings drawer controls. [themeKey] is null until the user picks a reader
  * theme, which means follow the system.
  */
@@ -81,6 +98,7 @@ data class ReaderSettings(
     val themeKey: String? = null,
     val readingMode: ReadingMode = ReadingMode.PAGED,
     val textAlignment: TextAlignment = TextAlignment.JUSTIFY,
+    val progressLabel: ProgressLabel = ProgressLabel.PERCENT,
 ) {
 
     companion object {

@@ -3,6 +3,10 @@
  */
 package com.kelly.reader.domain
 
+// the biggest book file taken, a backstop well above the longest novels; the upload page
+// checks the same number before sending
+const val MAX_UPLOAD_MB = 500
+
 /**
  * Why an upload was turned away. The screen maps each to a string resource.
  */
@@ -10,6 +14,7 @@ enum class TransferFailure {
     NOT_TXT,
     NOT_UTF8,
     INTERRUPTED,
+    TOO_BIG,
 }
 
 sealed interface TransferStatus {

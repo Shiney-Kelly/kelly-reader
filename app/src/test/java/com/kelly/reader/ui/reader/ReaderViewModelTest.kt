@@ -1,5 +1,6 @@
 package com.kelly.reader.ui.reader
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -23,6 +24,7 @@ import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
@@ -67,6 +69,72 @@ class ReaderViewModelTest {
         assertEquals(book, viewModel.uiState.value.book)
         assertEquals(text, viewModel.uiState.value.text)
         assertEquals("b1", settings.recent.value)
+    }
+
+    @Test
+    fun init_textStillReading_showsSavedPercentAndPagesNothing() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 4, progress = 0.4114f))
+        val gate = CompletableDeferred<Unit>()
+        repository.readTextGate = gate
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        val loading = viewModel.uiState.value
+        assertEquals("41.14%", loading.percentLabel)
+        assertEquals(null, loading.book)
+        assertEquals(null, loading.pageStarts)
+
+        gate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+        val read = viewModel.uiState.value
+        assertEquals(text, read.text)
+        assertEquals(4, read.offset)
+        assertEquals("efgh", read.pageText)
+    }
+
+    @Test
+    fun init_textStillReading_showsPageFromSavedList() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5, progress = 0.5f))
+        pageCache.save("b1", "k", intArrayOf(0, 4, 8))
+        val gate = CompletableDeferred<Unit>()
+        repository.readTextGate = gate
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        val loading = viewModel.uiState.value
+        assertEquals(null, loading.book)
+        assertEquals(2, loading.labelPage)
+        assertEquals(3, loading.labelPageCount)
+
+        gate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+        val read = viewModel.uiState.value
+        assertEquals(2, read.labelPage)
+        assertEquals(3, read.labelPageCount)
+    }
+
+    @Test
+    fun init_textStillReading_passingLayoutWithoutList_keepsSavedPage() = runTest(dispatcher) {
+        repository.books.value = listOf(book.copy(lastOffset = 5, progress = 0.5f))
+        pageCache.save("b1", "k", intArrayOf(0, 4, 8))
+        repository.readTextGate = CompletableDeferred()
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.setPageMeasurer("settling", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.labelPage)
+        assertEquals(3, viewModel.uiState.value.labelPageCount)
+    }
+
+    @Test
+    fun init_textStillReading_layoutNeverCounted_pageUnknown() = runTest(dispatcher) {
+        repository.readTextGate = CompletableDeferred()
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("never-counted", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.labelPage)
+        assertEquals(null, viewModel.uiState.value.labelPageCount)
     }
 
     @Test
@@ -327,6 +395,23 @@ class ReaderViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(ReadingMode.SCROLL, viewModel.uiState.value.settings.readingMode)
         assertEquals(TextAlignment.LEFT, viewModel.uiState.value.settings.textAlignment)
+    }
+
+    @Test
+    fun setProgressLabel_page_storedAndPagesKept() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.nextPage()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.setProgressLabel(ProgressLabel.PAGE)
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.uiState.value
+        assertEquals(ProgressLabel.PAGE, settings.settings.value.progressLabel)
+        assertEquals(ProgressLabel.PAGE, state.settings.progressLabel)
+        assertArrayEquals(intArrayOf(0, 4, 8), state.pageStarts)
+        assertEquals(1, state.pageIndex)
     }
 
     @Test

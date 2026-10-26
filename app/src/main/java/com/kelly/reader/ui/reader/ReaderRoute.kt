@@ -63,6 +63,7 @@ fun ReaderRoute(
             onTheme = { viewModel.setThemeKey(it?.key) },
             onReadingMode = viewModel::setReadingMode,
             onTextAlignment = viewModel::setTextAlignment,
+            onProgressLabel = viewModel::setProgressLabel,
         ),
         onSettingsClick = { drawerOpen = true },
         onCloseSettings = { drawerOpen = false },

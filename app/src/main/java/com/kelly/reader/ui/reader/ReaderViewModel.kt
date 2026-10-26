@@ -2,6 +2,7 @@ package com.kelly.reader.ui.reader
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
 import java.time.ZonedDateTime
 
@@ -17,10 +19,14 @@ import com.kelly.reader.data.BookRepository
 import com.kelly.reader.data.PageCache
 import com.kelly.reader.data.SettingsRepository
 import com.kelly.reader.domain.LineSpacing
+import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
 import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.TextAlignment
+
+// the screen's layout usually comes a fraction of a second after the book's row
+private const val LAYOUT_WAIT_MS = 500L
 
 /**
  * Loads the book, paginates it for the measurer the screen hands over, moves between pages
@@ -47,9 +53,27 @@ class ReaderViewModel(
     // text being read does not move under the reader
     private var waitingStarts: IntArray? = null
 
+    // the reading spot saved in the book's row, known before its text
+    private var savedSpot: Int? = null
+
+    // the screen's first layout, which opening waits for a moment, and whether the text is
+    // being read, after which a new layout looks up its saved page on its own
+    private val layoutKnown = CompletableDeferred<Unit>()
+    private var readingText = false
+
     init {
         viewModelScope.launch {
             val book = bookRepository.getBook(bookId) ?: return@launch
+            // the saved percentage shows while a big book's text is still being read; the book
+            // itself goes in with its text, so nothing is paged before the text is there
+            _uiState.update { it.copy(savedProgress = book.progress) }
+            savedSpot = book.lastOffset
+            // the saved page list is read before the text: reading a big book fills the memory
+            // and holds up everything else, the page number with it. The layout that names the
+            // list comes a moment after the book's row
+            withTimeoutOrNull(LAYOUT_WAIT_MS) { layoutKnown.await() }
+            loadSavedPage()
+            readingText = true
             val text = bookRepository.readText(book)
             _uiState.update {
                 it.copy(
@@ -79,7 +103,27 @@ class ReaderViewModel(
         if (key == measurerKey) return
         measurerKey = key
         this.measurer = measurer
+        layoutKnown.complete(Unit)
+        if (readingText) viewModelScope.launch { loadSavedPage() }
         paginate()
+    }
+
+    /**
+     * While the text is still being read, finds the page of the saved spot in the saved page
+     * list of the current layout, so the page number shows at once. Needs both the spot and
+     * the layout.
+     */
+    private suspend fun loadSavedPage() {
+        val key = measurerKey ?: return
+        val spot = savedSpot ?: return
+        if (_uiState.value.book != null) return
+        // a layout never counted keeps the number found so far: the page area changes size a
+        // few times while the screen settles, and those passing sizes have no list
+        val starts = cache[key] ?: pageCache.load(bookId, key) ?: return
+        // the text may have come in, or the layout changed, while the list was read
+        if (_uiState.value.book != null || key != measurerKey) return
+        val page = SavedPage(Paginator.pageIndexFor(starts, spot) + 1, starts.size)
+        _uiState.update { it.copy(savedPage = page) }
     }
 
     private fun paginate() {
@@ -235,5 +279,12 @@ class ReaderViewModel(
 
     fun setTextAlignment(alignment: TextAlignment) {
         viewModelScope.launch { settingsRepository.setTextAlignment(alignment) }
+    }
+
+    /**
+     * Picks what the lower right corner shows. Only the label changes, the pages stay the same.
+     */
+    fun setProgressLabel(label: ProgressLabel) {
+        viewModelScope.launch { settingsRepository.setProgressLabel(label) }
     }
 }

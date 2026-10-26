@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.kelly.reader.R
+import com.kelly.reader.domain.MAX_UPLOAD_MB
 import com.kelly.reader.domain.Transfer
 import com.kelly.reader.domain.TransferFailure
 import com.kelly.reader.domain.TransferStatus
@@ -386,13 +387,12 @@ private fun TransferRow(transfer: Transfer) {
     val statusText = when (status) {
         is TransferStatus.Uploading -> stringResource(R.string.add_status_uploading, status.percent)
         is TransferStatus.Added -> stringResource(R.string.add_status_added)
-        is TransferStatus.Failed -> stringResource(
-            when (status.reason) {
-                TransferFailure.NOT_TXT -> R.string.add_status_not_txt
-                TransferFailure.NOT_UTF8 -> R.string.add_status_not_utf8
-                TransferFailure.INTERRUPTED -> R.string.add_status_interrupted
-            },
-        )
+        is TransferStatus.Failed -> when (status.reason) {
+            TransferFailure.NOT_TXT -> stringResource(R.string.add_status_not_txt)
+            TransferFailure.NOT_UTF8 -> stringResource(R.string.add_status_not_utf8)
+            TransferFailure.INTERRUPTED -> stringResource(R.string.add_status_interrupted)
+            TransferFailure.TOO_BIG -> stringResource(R.string.add_status_too_big, MAX_UPLOAD_MB)
+        }
     }
     Row(
         modifier = Modifier

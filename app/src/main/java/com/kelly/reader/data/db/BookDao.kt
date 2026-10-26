@@ -20,6 +20,9 @@ interface BookDao {
     @Query("SELECT title FROM books")
     suspend fun getTitles(): List<String>
 
+    @Query("SELECT fileName FROM books")
+    suspend fun getFileNames(): List<String>
+
     @Insert
     suspend fun insert(book: BookEntity)
 

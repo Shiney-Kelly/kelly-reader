@@ -21,11 +21,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import java.io.EOFException
+import java.io.File
 import java.net.ServerSocket
 import java.net.URLDecoder
 
 import com.kelly.reader.data.BookRepository
+import com.kelly.reader.data.PART_SUFFIX
 import com.kelly.reader.data.TextImport
+import com.kelly.reader.data.Utf8TextWriter
+import com.kelly.reader.domain.MAX_UPLOAD_MB
 import com.kelly.reader.domain.Transfer
 import com.kelly.reader.domain.TransferFailure
 import com.kelly.reader.domain.TransferStatus
@@ -36,16 +41,25 @@ private const val FILE_NAME_HEADER = "X-File-Name"
 private const val STOP_GRACE_MS = 500L
 private const val STOP_TIMEOUT_MS = 1_000L
 private const val BUFFER_SIZE = 64 * 1024
+private const val BYTES_PER_MB = 1024L * 1024L
+
+/**
+ * What came of reading an upload's body: [bytes] read, and [charCount] of the cleaned text,
+ * null when it was not UTF-8 or was [tooBig].
+ */
+private class Received(val bytes: Long, val charCount: Int?, val tooBig: Boolean)
 
 /**
  * The Wi-Fi upload server. Serves [page] at the root and takes one file per `POST /upload`,
- * sent as a raw body with the file name URL-encoded in the `X-File-Name` header. Progress and
- * results of every file show up in [transfers]. Start it with [start], stop it with [stop].
+ * sent as a raw body with the file name URL-encoded in the `X-File-Name` header. Files over
+ * [maxBytes] are turned away. Progress and results of every file show up in [transfers].
+ * Start it with [start], stop it with [stop].
  */
 class UploadServer(
     private val bookRepository: BookRepository,
     private val page: String,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val maxBytes: Long = MAX_UPLOAD_MB * BYTES_PER_MB,
 ) {
 
     private val _transfers = MutableStateFlow<List<Transfer>>(emptyList())
@@ -98,45 +112,96 @@ class UploadServer(
             call.respondText("Not a .txt file, skipped", status = HttpStatusCode.UnsupportedMediaType)
             return
         }
+        if (size > maxBytes) {
+            turnAwayTooBig(call, id, name, size)
+            return
+        }
         setStatus(id, name, size, TransferStatus.Uploading(0))
 
         val file = bookRepository.newBookFile()
-        val received = try {
-            withContext(ioDispatcher) {
-                val channel = call.receiveChannel()
-                val buffer = ByteArray(BUFFER_SIZE)
-                var total = 0L
-                file.outputStream().use { out ->
-                    while (true) {
-                        val n = channel.readAvailable(buffer, 0, buffer.size)
-                        if (n == -1) break
-                        out.write(buffer, 0, n)
-                        total += n
-                        if (size > 0) {
-                            val percent = (total * 100 / size).toInt().coerceAtMost(99)
-                            setStatus(id, name, size, TransferStatus.Uploading(percent))
-                        }
-                    }
-                }
-                total
+        // the upload grows under a .part name and takes the book's name only once it is whole
+        // and checked, so a .part file left behind is always an unfinished upload
+        val part = File(file.path + PART_SUFFIX)
+        val body = try {
+            val body = withContext(ioDispatcher) { receiveInto(part, call, id, name, size) }
+            val charCount = body.charCount
+            if (charCount != null) {
+                check(part.renameTo(file)) { "could not move the upload into place" }
+                val titles = bookRepository.getTitles()
+                val title = TextImport.uniqueTitle(TextImport.titleFrom(name), titles)
+                bookRepository.addBook(file, title, charCount)
+            } else {
+                part.delete()
             }
-        } catch (e: Exception) {
+            body
+        } catch (e: Throwable) {
+            // a lost connection, a stopped server or anything else: nothing is left behind
+            part.delete()
             file.delete()
             setStatus(id, name, size, TransferStatus.Failed(TransferFailure.INTERRUPTED))
             throw e
         }
 
-        val text = withContext(ioDispatcher) { TextImport.prepareFile(file) }
-        if (text == null) {
-            file.delete()
-            setStatus(id, name, received, TransferStatus.Failed(TransferFailure.NOT_UTF8))
-            call.respondText("Not UTF-8 text, skipped", status = HttpStatusCode.UnprocessableEntity)
-            return
+        when {
+            body.tooBig -> turnAwayTooBig(call, id, name, body.bytes)
+            body.charCount == null -> {
+                setStatus(id, name, body.bytes, TransferStatus.Failed(TransferFailure.NOT_UTF8))
+                call.respondText(
+                    text = "Not UTF-8 text, skipped",
+                    status = HttpStatusCode.UnprocessableEntity,
+                )
+            }
+            else -> {
+                setStatus(id, name, file.length(), TransferStatus.Added)
+                call.respondText("ok")
+            }
         }
-        val title = TextImport.uniqueTitle(TextImport.titleFrom(name), bookRepository.getTitles())
-        bookRepository.addBook(file, title, text.length)
-        setStatus(id, name, file.length(), TransferStatus.Added)
-        call.respondText("ok")
+    }
+
+    /**
+     * Reads the upload's body into [part], checking and cleaning the text as it arrives, so a
+     * big file never sits in memory. [size] is the stated length, 0 when unknown.
+     */
+    private suspend fun receiveInto(
+        part: File,
+        call: ApplicationCall,
+        id: Int,
+        name: String,
+        size: Long,
+    ): Received {
+        val channel = call.receiveChannel()
+        val buffer = ByteArray(BUFFER_SIZE)
+        var received = 0L
+        part.outputStream().use { out ->
+            val text = Utf8TextWriter(out)
+            while (true) {
+                val n = channel.readAvailable(buffer, 0, buffer.size)
+                if (n == -1) break
+                received += n
+                // a body sent without its size can still run past the limit
+                if (received > maxBytes) return Received(received, charCount = null, tooBig = true)
+                // after a bad byte the rest is only read off the connection, unused
+                if (text.valid) text.write(buffer, n)
+                if (size > 0) {
+                    val percent = (received * 100 / size).toInt().coerceAtMost(99)
+                    setStatus(id, name, size, TransferStatus.Uploading(percent))
+                }
+            }
+            // a connection closed early can end the body short of its stated size
+            if (size > 0 && received < size) {
+                throw EOFException("body ended after $received of $size bytes")
+            }
+            val charCount = if (text.valid && text.finish()) text.charCount else null
+            return Received(received, charCount, tooBig = false)
+        }
+    }
+
+    private suspend fun turnAwayTooBig(call: ApplicationCall, id: Int, name: String, size: Long) {
+        setStatus(id, name, size, TransferStatus.Failed(TransferFailure.TOO_BIG))
+        call.respondText(
+            text = "Over $MAX_UPLOAD_MB MB, skipped",
+            status = HttpStatusCode.PayloadTooLarge,
+        )
     }
 
     /**

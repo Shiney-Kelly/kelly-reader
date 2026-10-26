@@ -5,10 +5,13 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 import java.net.HttpURLConnection
+import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
 
@@ -35,12 +38,22 @@ class UploadServerTest {
         server.stop()
     }
 
-    private fun post(name: String, body: ByteArray): Pair<Int, String> {
-        val connection = URL("http://127.0.0.1:$port/upload").openConnection() as HttpURLConnection
+    // chunked sends the body without a Content-Length, as a client that does not know the size
+    private fun post(
+        name: String,
+        body: ByteArray,
+        toPort: Int = port,
+        chunked: Boolean = false,
+    ): Pair<Int, String> {
+        val connection = URL("http://127.0.0.1:$toPort/upload").openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
         connection.doOutput = true
         connection.setRequestProperty("X-File-Name", URLEncoder.encode(name, "UTF-8"))
-        connection.setFixedLengthStreamingMode(body.size)
+        if (chunked) {
+            connection.setChunkedStreamingMode(1_024)
+        } else {
+            connection.setFixedLengthStreamingMode(body.size)
+        }
         connection.outputStream.use { it.write(body) }
         val code = connection.responseCode
         val stream = if (code < 400) connection.inputStream else connection.errorStream
@@ -107,6 +120,100 @@ class UploadServerTest {
         val transfer = server.transfers.value.single()
         assertEquals(TransferStatus.Failed(TransferFailure.NOT_UTF8), transfer.status)
         assertTrue(repository.books.value.isEmpty())
+    }
+
+    @Test
+    fun post_bomAndWindowsLines_storedClean() {
+        val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+        val (code, _) = post("clean.txt", bom + "x\r\ny\rz".toByteArray())
+        assertEquals(200, code)
+        assertEquals(5, repository.books.value.single().charCount)
+        assertEquals("x\ny\nz", repository.files.single().readText())
+    }
+
+    @Test
+    fun post_bodyOfManyPieces_keepsEveryChar() {
+        val line = "雨停的时候，山谷里升起了一层薄雾。The fog lifted.\r\n"
+        val text = line.repeat(20_000) // about 1.2 MB, many 64 KB pieces
+        val (code, _) = post("long.txt", text.toByteArray(Charsets.UTF_8))
+        assertEquals(200, code)
+        val cleaned = text.replace("\r\n", "\n")
+        assertEquals(cleaned.length, repository.books.value.single().charCount)
+        assertEquals(cleaned, repository.files.single().readText())
+    }
+
+    @Test
+    fun post_badByteLate_isRejectedWith422AndFileDeleted() {
+        val good = "a".repeat(200_000).toByteArray()
+        val (code, message) = post("late.txt", good + byteArrayOf(0xFF.toByte()) + good)
+        assertEquals(422, code)
+        assertTrue(message.contains("Not UTF-8"))
+        assertTrue(repository.books.value.isEmpty())
+        assertFalse(repository.files.single().exists())
+    }
+
+    @Test
+    fun post_overLimit_isRejectedWith413BeforeReceiving() {
+        val small = UploadServer(repository, page = "", maxBytes = 1_000)
+        val smallPort = small.start(preferredPort = 0)
+        try {
+            val body = ByteArray(2_000) { 'a'.code.toByte() }
+            val (code, message) = post("big.txt", body, toPort = smallPort)
+            assertEquals(413, code)
+            assertTrue(message.contains("MB, skipped"))
+            val transfer = small.transfers.value.single()
+            assertEquals(TransferStatus.Failed(TransferFailure.TOO_BIG), transfer.status)
+            assertTrue(repository.books.value.isEmpty())
+            assertTrue(repository.files.isEmpty())
+        } finally {
+            small.stop()
+        }
+    }
+
+    @Test
+    fun post_overLimitWithoutSize_isRejectedWith413AndFileDeleted() {
+        val small = UploadServer(repository, page = "", maxBytes = 1_000)
+        val smallPort = small.start(preferredPort = 0)
+        try {
+            val body = ByteArray(5_000) { 'a'.code.toByte() }
+            val (code, _) = post("big.txt", body, toPort = smallPort, chunked = true)
+            assertEquals(413, code)
+            val transfer = small.transfers.value.single()
+            assertEquals(TransferStatus.Failed(TransferFailure.TOO_BIG), transfer.status)
+            assertTrue(repository.books.value.isEmpty())
+            assertFalse(repository.files.single().exists())
+        } finally {
+            small.stop()
+        }
+    }
+
+    @Test
+    fun post_added_leavesNoPartFile() {
+        post("whole.txt", "whole".toByteArray())
+        val file = repository.files.single()
+        assertTrue(file.exists())
+        assertFalse(File(file.path + ".part").exists())
+    }
+
+    @Test
+    fun post_connectionClosedEarly_isInterruptedAndLeavesNothing() = runBlocking {
+        Socket("127.0.0.1", port).use { socket ->
+            val head = "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nX-File-Name: cut.txt\r\n" +
+                "Content-Length: 100000\r\nConnection: close\r\n\r\n"
+            socket.getOutputStream().apply {
+                write(head.toByteArray())
+                write(ByteArray(30_000) { 'a'.code.toByte() })
+                flush()
+            }
+        }
+        val transfer = withTimeout(5_000) {
+            server.transfers.first { list -> list.any { it.isFailed } }
+        }.single()
+        assertEquals(TransferStatus.Failed(TransferFailure.INTERRUPTED), transfer.status)
+        assertTrue(repository.books.value.isEmpty())
+        val file = repository.files.single()
+        assertFalse(file.exists())
+        assertFalse(File(file.path + ".part").exists())
     }
 
     @Test

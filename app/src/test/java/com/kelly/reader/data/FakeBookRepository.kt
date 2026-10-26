@@ -1,5 +1,6 @@
 package com.kelly.reader.data
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -15,6 +16,7 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
     val books = MutableStateFlow(initial)
     val texts = mutableMapOf<String, String>()
     val deleted = mutableListOf<String>()
+    val files = mutableListOf<File>()
 
     override fun observeBooks(): Flow<List<Book>> = books
 
@@ -22,7 +24,9 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
 
     override suspend fun getTitles(): List<String> = books.value.map { it.title }
 
-    override suspend fun newBookFile(): File = File.createTempFile("book", ".txt")
+    // a free name only, like the real one: the upload makes the file
+    override suspend fun newBookFile(): File =
+        File.createTempFile("book", ".txt").also { it.delete(); files += it }
 
     override suspend fun addBook(file: File, title: String, charCount: Int): Book {
         val book = Book(
@@ -54,5 +58,18 @@ class FakeBookRepository(initial: List<Book> = emptyList()) : BookRepository {
         }
     }
 
-    override suspend fun readText(book: Book): String = texts.getValue(book.id)
+    // when set, reading a text waits for it, as a big book takes a while
+    var readTextGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun readText(book: Book): String {
+        readTextGate?.await()
+        return texts.getValue(book.id)
+    }
+
+    val sweeps = mutableListOf<Long>()
+
+    override suspend fun deleteOrphanFiles(olderThan: Long): Int {
+        sweeps += olderThan
+        return 0
+    }
 }

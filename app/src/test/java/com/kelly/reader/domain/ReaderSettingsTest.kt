@@ -37,6 +37,13 @@ class ReaderSettingsTest {
     }
 
     @Test
+    fun progressLabel_fromKey_knownAndUnknown() {
+        assertEquals(ProgressLabel.PAGE, ProgressLabel.fromKey("page"))
+        assertEquals(ProgressLabel.PERCENT, ProgressLabel.fromKey("both"))
+        assertEquals(ProgressLabel.PERCENT, ProgressLabel.fromKey(null))
+    }
+
+    @Test
     fun readerSettings_defaults_matchDesign() {
         val settings = ReaderSettings()
         assertEquals(20, settings.fontSize)
@@ -45,5 +52,6 @@ class ReaderSettingsTest {
         assertEquals(null, settings.themeKey)
         assertEquals(ReadingMode.PAGED, settings.readingMode)
         assertEquals(TextAlignment.JUSTIFY, settings.textAlignment)
+        assertEquals(ProgressLabel.PERCENT, settings.progressLabel)
     }
 }
