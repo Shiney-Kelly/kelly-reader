@@ -19,6 +19,7 @@ import org.junit.Test
 import com.kelly.reader.data.FakeBookRepository
 import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
+import com.kelly.reader.domain.BookSort
 
 /**
  * Checks edit mode, selection, deleting, the shake shuffle and finding the bear on the shelf.
@@ -55,6 +56,24 @@ class ShelfViewModelTest {
         val viewModel = viewModel()
         assertEquals(books, viewModel.uiState.value.books)
         assertFalse(viewModel.uiState.value.editing)
+    }
+
+    @Test
+    fun setSort_title_storedAndBooksReordered() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository()
+        val viewModel = viewModel(settingsRepository = settings)
+        viewModel.setSort(BookSort.TITLE)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(BookSort.TITLE, settings.sort.value)
+        assertEquals(BookSort.TITLE, viewModel.uiState.value.sort)
+        assertEquals(listOf("b1", "b3", "b2"), viewModel.uiState.value.books?.map { it.id })
+    }
+
+    @Test
+    fun init_storedOrder_appliedToBooks() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository().apply { sort.value = BookSort.ADDED_NEWEST }
+        val viewModel = viewModel(settingsRepository = settings)
+        assertEquals(listOf("b3", "b2", "b1"), viewModel.uiState.value.books?.map { it.id })
     }
 
     @Test
@@ -215,5 +234,16 @@ class ShelfViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertTrue(settings.petFound.value)
         assertTrue(viewModel.uiState.value.petFound)
+    }
+
+    @Test
+    fun onPetLeft_bearShown_hidesAndSavesIt() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(shelfPetFound = true)
+        val viewModel = viewModel(settingsRepository = settings)
+        viewModel.onPetLeft()
+        assertFalse(viewModel.uiState.value.petFound)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertFalse(settings.petFound.value)
+        assertFalse(viewModel.uiState.value.petFound)
     }
 }

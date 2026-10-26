@@ -3,6 +3,7 @@ package com.kelly.reader.ui.shelf
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -10,8 +11,8 @@ private const val MIN_X = 8f
 private const val MAX_X = 330f
 
 /**
- * Checks the shelf bear's rest, walk, sit and read cycle, its taps, its frames, and how it
- * answers knocks on the ledge.
+ * Checks the shelf bear's rest, walk, sit and read cycle, its taps, its frames, what its bubble
+ * says, and how it answers knocks on the ledge.
  */
 class ShelfPetStateTest {
 
@@ -146,6 +147,108 @@ class ShelfPetStateTest {
     }
 
     @Test
+    fun onFeet_onlyWhileTakingSteps() {
+        assertTrue(ShelfPetState(mode = PetMode.WALK).onFeet)
+        assertFalse(ShelfPetState(mode = PetMode.IDLE).onFeet)
+        assertFalse(ShelfPetState(mode = PetMode.READ).onFeet)
+        assertFalse(ShelfPetState(mode = PetMode.STAND_UP).onFeet)
+        // entering: not while it waits and peeks, then yes
+        val peeking = ShelfPetState(mode = PetMode.ENTER, elapsedMs = PET_ANSWER_MS)
+        assertFalse(peeking.onFeet)
+        assertTrue(peeking.copy(elapsedMs = PET_ANSWER_MS + PET_PEEK_MS).onFeet)
+        // leaving: not while it gets up, then yes
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertFalse(leaving.onFeet)
+        assertTrue(leaving.ticks(ticksFor(PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS)).onFeet)
+    }
+
+    @Test
+    fun tick_onFeet_countsTheShorterWalkTick() {
+        val walking = ShelfPetState(mode = PetMode.WALK, x = 100f, elapsedMs = 1_000L)
+        assertEquals(PET_WALK_TICK_MS, walking.tickMs)
+        assertEquals(1_000L + PET_WALK_TICK_MS, walking.ticks(1).elapsedMs)
+        val sitting = ShelfPetState(idleForMs = PET_MAX_IDLE_MS)
+        assertEquals(PET_TICK_MS, sitting.tickMs)
+        assertEquals(PET_TICK_MS, sitting.ticks(1).elapsedMs)
+    }
+
+    @Test
+    fun onLongPress_sittingOnTheLeft_getsUpWalksOffLeftAndIsGone() {
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertEquals(PetMode.LEAVE, leaving.mode)
+        assertFalse(leaving.facingRight)
+        assertEquals(-78f, leaving.leaveToX)
+        // gets up first: sinks, then the sit frames backward, the bear staying where it was
+        val standing = leaving.ticks(2)
+        assertEquals(24f, standing.x)
+        assertEquals(PetFrame.SIT_3, standing.frame())
+        // then two steps a tick, off the ledge on the left: 24 to -78 dp is 68 ticks
+        val standTicks = ticksFor(PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS)
+        val walking = leaving.ticks(standTicks + 10)
+        assertEquals(PetMode.LEAVE, walking.mode)
+        assertTrue(walking.x < 24f)
+        assertTrue(walking.shown)
+        val gone = leaving.ticks(standTicks + 68)
+        assertEquals(PetMode.GONE, gone.mode)
+        assertFalse(gone.shown)
+        assertEquals(gone, gone.ticks(5))
+    }
+
+    @Test
+    fun onLongPress_walkingOnTheRight_leavesRightWithoutStopping() {
+        val leaving = ShelfPetState(mode = PetMode.WALK, x = 300f, facingRight = false, step = 3)
+            .onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertTrue(leaving.facingRight)
+        assertEquals(400f, leaving.leaveToX)
+        val next = leaving.ticks(1)
+        assertEquals(300f + 2 * PET_STEP_DP, next.x)
+        assertEquals(5, next.step)
+    }
+
+    @Test
+    fun onLongPress_animationsOff_goneAtOnce() {
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertEquals(PetMode.GONE, leaving.ticks(1, animate = false).mode)
+    }
+
+    @Test
+    fun bubble_sentAwayWhileSitting_saysByeOnceUpForAWhile() {
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertNull(leaving.bubble)
+        val standTicks = ticksFor(PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS)
+        assertNull(leaving.ticks(standTicks - 1).bubble)
+        var state = leaving.ticks(standTicks)
+        val byeEnds = PET_CROUCH_MS + 3 * PET_SIT_FRAME_MS + PET_GREET_MS
+        while (state.elapsedMs < byeEnds) {
+            assertEquals(PetBubble.BYE, state.bubble)
+            state = state.tick(MIN_X, MAX_X, random)
+        }
+        assertEquals(PetMode.LEAVE, state.mode)
+        assertNull(state.bubble)
+    }
+
+    @Test
+    fun bubble_sentAwayWhileWalking_saysByeAtOnce() {
+        val leaving = ShelfPetState(mode = PetMode.WALK, x = 300f)
+            .onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertEquals(PetBubble.BYE, leaving.bubble)
+    }
+
+    @Test
+    fun bubble_sittingWalkingOrReading_onlyReadingSaysSomething() {
+        assertNull(ShelfPetState().bubble)
+        assertNull(ShelfPetState(mode = PetMode.WALK).bubble)
+        assertEquals(PetBubble.READING, ShelfPetState(mode = PetMode.READ).bubble)
+    }
+
+    @Test
+    fun onTapAndLongPress_whileLeaving_changeNothing() {
+        val leaving = ShelfPetState(x = 24f).onLongPress(ledgeWidth = 400f, petSize = 78f)
+        assertEquals(leaving, leaving.onTap())
+        assertEquals(leaving, leaving.onLongPress(ledgeWidth = 400f, petSize = 78f))
+    }
+
+    @Test
     fun onTap_whileStandingUp_sitsDownThenReads() {
         val tapped = ShelfPetState(mode = PetMode.STAND_UP, elapsedMs = 250L).onTap()
         assertEquals(PetMode.SIT_DOWN, tapped.mode)
@@ -230,7 +333,7 @@ class ShelfPetStateTest {
     }
 
     @Test
-    fun nextIdleMs_anySeed_isFiveToFifteenSeconds() {
+    fun nextIdleMs_anySeed_isThreeToNineSeconds() {
         repeat(50) { seed ->
             assertTrue(nextIdleMs(Random(seed)) in PET_MIN_IDLE_MS..PET_MAX_IDLE_MS)
         }
@@ -274,6 +377,20 @@ class ShelfPetStateTest {
         assertEquals(PetMode.ENTER, walking.mode)
         assertTrue(walking.x > start.x)
         assertEquals(PetFrame.WALK_2, walking.frame())
+    }
+
+    @Test
+    fun bubble_entering_saysHelloFromThePeekForAWhile() {
+        val start = enteringPet(fromLeft = true, ledgeWidth = 392f, petSize = 78f)
+        assertNull(start.bubble)
+        var state = start.ticks(ticksFor(PET_ANSWER_MS))
+        while (state.elapsedMs < PET_ANSWER_MS + PET_GREET_MS) {
+            assertEquals(PetBubble.HELLO, state.bubble)
+            state = state.tick(MIN_X, MAX_X, random)
+        }
+        // still walking in when it stops
+        assertEquals(PetMode.ENTER, state.mode)
+        assertNull(state.bubble)
     }
 
     @Test

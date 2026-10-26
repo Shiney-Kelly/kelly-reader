@@ -25,6 +25,7 @@ import com.kelly.reader.data.FakeSettingsRepository
 import com.kelly.reader.domain.Book
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ProgressLabel
+import com.kelly.reader.domain.ReaderSettings
 import com.kelly.reader.domain.ReadingMode
 import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
@@ -135,6 +136,34 @@ class ReaderViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(null, viewModel.uiState.value.labelPage)
         assertEquals(null, viewModel.uiState.value.labelPageCount)
+    }
+
+    @Test
+    fun jumpTo_allPagesKnown_goesByPageAndSaves() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4)) // pages at 0, 4, 8
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.jumpTo(0.5f)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("efgh", viewModel.uiState.value.pageText)
+        assertEquals(4, repository.books.value.single().lastOffset)
+
+        viewModel.jumpTo(1f)
+        assertEquals("ij", viewModel.uiState.value.pageText)
+        viewModel.jumpTo(0f)
+        assertEquals("abcd", viewModel.uiState.value.pageText)
+    }
+
+    @Test
+    fun jumpTo_noPagesYet_measuresFromThePlace() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.jumpTo(0.5f)
+        assertEquals(5, viewModel.uiState.value.offset)
+        viewModel.setPageMeasurer("k", fixed(4))
+        dispatcher.scheduler.advanceUntilIdle()
+        // measured from the place, so its page starts there
+        assertEquals("fghi", viewModel.uiState.value.pageText)
     }
 
     @Test
@@ -319,7 +348,7 @@ class ReaderViewModelTest {
         viewModel.setThemeKey("paper")
         dispatcher.scheduler.advanceUntilIdle()
         val state = viewModel.uiState.value.settings
-        assertEquals(21, state.fontSize)
+        assertEquals(ReaderSettings.DEFAULT_FONT_SIZE + 1, state.fontSize)
         assertEquals(LineSpacing.LOOSE, state.lineSpacing)
         assertEquals("paper", state.themeKey)
 

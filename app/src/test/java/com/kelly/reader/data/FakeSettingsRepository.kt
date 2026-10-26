@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import java.time.ZonedDateTime
 
+import com.kelly.reader.domain.BookSort
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
@@ -75,5 +76,13 @@ class FakeSettingsRepository(
 
     override suspend fun setShelfPetFound(found: Boolean) {
         petFound.value = found
+    }
+
+    val sort = MutableStateFlow(BookSort.ADDED_OLDEST)
+
+    override val shelfSort: Flow<BookSort> = sort
+
+    override suspend fun setShelfSort(sort: BookSort) {
+        this.sort.value = sort
     }
 }

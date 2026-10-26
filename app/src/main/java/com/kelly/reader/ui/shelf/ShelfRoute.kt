@@ -71,6 +71,8 @@ fun ShelfRoute(
         onAddClick = onAddBooks,
         onDeleteClick = viewModel::deleteSelected,
         onPetFound = viewModel::onPetFound,
+        onPetLeft = viewModel::onPetLeft,
+        onSortChange = viewModel::setSort,
         modifier = modifier,
     )
 }

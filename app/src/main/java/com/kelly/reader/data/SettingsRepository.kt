@@ -14,6 +14,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
+import com.kelly.reader.domain.BookSort
 import com.kelly.reader.domain.LineSpacing
 import com.kelly.reader.domain.ProgressLabel
 import com.kelly.reader.domain.ReaderFont
@@ -23,8 +24,8 @@ import com.kelly.reader.domain.ReadingStreak
 import com.kelly.reader.domain.TextAlignment
 
 /**
- * The recent book, the reading settings, the reading streak and whether the shelf bear has been
- * found. An interface so tests can use a fake.
+ * The recent book, the reading settings, the reading streak, whether the shelf bear has been
+ * found and the shelf's order. An interface so tests can use a fake.
  */
 interface SettingsRepository {
 
@@ -80,6 +81,13 @@ interface SettingsRepository {
     val shelfPetFound: Flow<Boolean>
 
     suspend fun setShelfPetFound(found: Boolean)
+
+    /**
+     * The order the shelf shows its books in.
+     */
+    val shelfSort: Flow<BookSort>
+
+    suspend fun setShelfSort(sort: BookSort)
 }
 
 /**
@@ -159,6 +167,14 @@ class DataStoreSettingsRepository(
         dataStore.edit { prefs -> prefs[SHELF_PET_FOUND] = found }
     }
 
+    override val shelfSort: Flow<BookSort> = dataStore.data.map { prefs ->
+        BookSort.fromKey(prefs[SHELF_SORT])
+    }
+
+    override suspend fun setShelfSort(sort: BookSort) {
+        dataStore.edit { prefs -> prefs[SHELF_SORT] = sort.key }
+    }
+
     private fun Preferences.streak(): ReadingStreak = ReadingStreak(
         days = this[STREAK_DAYS] ?: 0,
         lastDay = this[STREAK_LAST_DAY]?.let(LocalDate::ofEpochDay),
@@ -182,5 +198,6 @@ class DataStoreSettingsRepository(
         val STREAK_LAST_READ_AT = longPreferencesKey("streak_last_read_at")
         val STREAK_LAST_ZONE = stringPreferencesKey("streak_last_zone")
         val SHELF_PET_FOUND = booleanPreferencesKey("shelf_pet_found")
+        val SHELF_SORT = stringPreferencesKey("shelf_sort")
     }
 }
