@@ -23,10 +23,10 @@
     <string name="shelf_press_back_again">Press back again to exit</string>
     <string name="shelf_sort">Sort books</string>
     <string name="shelf_sort_last_read">Last read</string>
-    <string name="shelf_sort_added_newest">Newest added</string>
-    <string name="shelf_sort_added_oldest">Oldest added</string>
-    <string name="shelf_sort_title_a_to_z">Title A–Z</string>
-    <string name="shelf_sort_title_z_to_a">Title Z–A</string>
+    <string name="shelf_sort_added_newest">Added (newest first)</string>
+    <string name="shelf_sort_added_oldest">Added (oldest first)</string>
+    <string name="shelf_sort_title_a_to_z">Title (A to Z)</string>
+    <string name="shelf_sort_title_z_to_a">Title (Z to A)</string>
     <string name="shelf_pet_label">Shelf bear. Tap to make it sit and read</string>
     <string name="shelf_pet_reading_label">Shelf bear is reading</string>
     <string name="shelf_pet_leave_label">Send the bear away</string>
