@@ -21,9 +21,17 @@
     <string name="shelf_empty_add">Add books</string>
     <string name="shelf_delete">Delete</string>
     <string name="shelf_press_back_again">Press back again to exit</string>
+    <string name="shelf_sort">Sort books</string>
+    <string name="shelf_sort_last_read">Last read</string>
+    <string name="shelf_sort_added_newest">Newest added</string>
+    <string name="shelf_sort_added_oldest">Oldest added</string>
+    <string name="shelf_sort_title">Title</string>
     <string name="shelf_pet_label">Shelf bear. Tap to make it sit and read</string>
     <string name="shelf_pet_reading_label">Shelf bear is reading</string>
+    <string name="shelf_pet_leave_label">Send the bear away</string>
     <string name="shelf_pet_bubble">shh… reading…</string>
+    <string name="shelf_pet_hello">hi~</string>
+    <string name="shelf_pet_bye">see ya~</string>
     <plurals name="shelf_books_selected">
         <item quantity="one">%1$d book selected</item>
         <item quantity="other">%1$d books selected</item>
@@ -71,6 +79,7 @@
     <string name="reader_previous_page">Previous page</string>
     <string name="reader_next_page">Next page</string>
     <string name="reader_close_settings">Close settings</string>
+    <string name="reader_position">Position</string>
     <string name="reader_mode">Reading mode</string>
     <string name="reader_mode_paged">Paged</string>
     <string name="reader_mode_scroll">Scroll</string>

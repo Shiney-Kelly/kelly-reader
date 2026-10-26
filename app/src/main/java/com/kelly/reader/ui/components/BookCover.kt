@@ -23,7 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +37,12 @@ import com.kelly.reader.ui.theme.CHECK_OFF_INK
 import com.kelly.reader.ui.theme.KellyReaderTheme
 import com.kelly.reader.ui.theme.LITERATA
 
+// a long title is cut with "…" after this many lines, which leave the size line room below
+private const val COVER_TITLE_LINES = 4
+
+// the check circle in edit mode, 26dp in from the corner by 6dp, less the cover's own padding
+private val CHECK_ROOM = 22.dp
+
 // the cover is a book seen from the front: tight corners on the spine side, round on the other
 private val COVER_SHAPE = RoundedCornerShape(
     topStart = 4.dp,
@@ -43,13 +52,14 @@ private val COVER_SHAPE = RoundedCornerShape(
 )
 
 /**
- * A generated cover: [color] background, a spine strip, the first character of the title as a
- * big glyph and [meta] ("TXT · 386 KB") at the bottom. In edit mode [selected] is non-null and a
- * check circle shows in the top right corner.
+ * A generated cover: [color] background, a spine strip, the [title] in serif at the top, cut
+ * with "…" when it runs past four lines, and [meta] ("TXT · 386 KB") at the bottom. In edit mode
+ * [selected] is non-null and a check circle shows in the top right corner, which the title
+ * keeps clear of.
  */
 @Composable
 fun BookCover(
-    glyph: String,
+    title: String,
     meta: String,
     color: Color,
     modifier: Modifier = Modifier,
@@ -78,12 +88,16 @@ fun BookCover(
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = glyph,
+                text = title,
                 color = colors.coverGlyph,
                 fontFamily = LITERATA,
-                fontSize = 40.sp,
-                lineHeight = 40.sp,
-                maxLines = 1,
+                fontSize = 16.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = COVER_TITLE_LINES,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(textDirection = TextDirection.Content),
+                modifier = Modifier.padding(end = if (selected != null) CHECK_ROOM else 0.dp),
             )
             Text(
                 text = meta,
@@ -134,7 +148,7 @@ private fun CheckCircle(selected: Boolean, modifier: Modifier = Modifier) {
 @Composable
 private fun BookCoverPreview() {
     KellyReaderTheme {
-        BookCover(glyph = "山", meta = "TXT · 1.2 MB", color = AppTheme.colors.coverColors[1])
+        BookCover(title = "山间小记", meta = "TXT · 1.2 MB", color = AppTheme.colors.coverColors[1])
     }
 }
 
@@ -143,7 +157,7 @@ private fun BookCoverPreview() {
 private fun BookCoverSelectedPreview() {
     KellyReaderTheme {
         BookCover(
-            glyph = "T",
+            title = "The Quiet Harbor and Other Stories from the Northern Coast",
             meta = "TXT · 386 KB",
             color = AppTheme.colors.coverColors[0],
             selected = true,

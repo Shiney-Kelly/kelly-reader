@@ -17,10 +17,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -32,7 +35,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,6 +74,7 @@ import kotlinx.coroutines.delay
 
 import com.kelly.reader.R
 import com.kelly.reader.domain.Book
+import com.kelly.reader.domain.BookSort
 import com.kelly.reader.domain.formatPercent
 import com.kelly.reader.domain.formatSize
 import com.kelly.reader.ui.components.AccentTextButton
@@ -101,10 +109,19 @@ private val SNAP_BACK_SPRING = spring(
 // move draw nothing until the move ends
 private val NO_GLIDE = snap<IntOffset>()
 
+// ----- bottom of the grid -----
+
+// the delete bar above the navigation bar: 14dp, the 48dp button, 14dp
+private val DELETE_BAR_HEIGHT = 76.dp
+
+// the last row of covers ends this far above the ledge, or above the delete bar when editing
+private val GRID_END_GAP = 16.dp
+
 /**
- * The bookshelf: a title row with Edit and Add, a three column grid of covers, the ledge with
- * the shelf bear along the bottom, and the delete bar in its place while books are selected.
- * [onPetFound] is called when someone knocks the hidden bear out onto the ledge.
+ * The bookshelf: a title row with Sort, Edit and Add, a three column grid of covers, the ledge
+ * with the shelf bear along the bottom, and the delete bar in its place while books are
+ * selected. [onPetFound] is called when someone knocks the hidden bear out onto the ledge, and
+ * [onPetLeft] when a long press has sent it off again.
  */
 @Composable
 fun ShelfScreen(
@@ -115,6 +132,8 @@ fun ShelfScreen(
     onAddClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onPetFound: () -> Unit,
+    onPetLeft: () -> Unit,
+    onSortChange: (BookSort) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -124,17 +143,24 @@ fun ShelfScreen(
                 onEditClick = onEditClick,
                 onDoneClick = onDoneClick,
                 onAddClick = onAddClick,
+                onSortChange = onSortChange,
             )
             val books = uiState.shownBooks
+            // the grid scrolls on behind the ledge or the delete bar, and its last row stops
+            // just above them
+            val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val bottomBar = if (uiState.editing) DELETE_BAR_HEIGHT else LEDGE_TOTAL_HEIGHT
             when {
                 books == null -> Unit
                 books.isEmpty() -> EmptyShelf(onAddClick = onAddClick, modifier = Modifier.weight(1f))
                 else -> BookGrid(
                     books = books,
+                    sort = uiState.sort,
                     editing = uiState.editing,
                     selected = uiState.selected,
                     shuffling = uiState.shuffling,
                     onBookClick = onBookClick,
+                    bottomPadding = bottomBar + navigationBar + GRID_END_GAP,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -143,6 +169,7 @@ fun ShelfScreen(
             visible = !uiState.editing,
             found = uiState.petFound,
             onFound = onPetFound,
+            onLeft = onPetLeft,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         if (uiState.editing && uiState.selectedCount > 0) {
@@ -255,6 +282,7 @@ private fun ShelfTopBar(
     onEditClick: () -> Unit,
     onDoneClick: () -> Unit,
     onAddClick: () -> Unit,
+    onSortChange: (BookSort) -> Unit,
 ) {
     val title = when {
         !uiState.editing -> stringResource(R.string.shelf_title)
@@ -280,6 +308,9 @@ private fun ShelfTopBar(
         if (uiState.editing) {
             AccentTextButton(label = stringResource(R.string.shelf_done), onClick = onDoneClick)
         } else {
+            if (uiState.books?.isNotEmpty() == true) {
+                SortButton(sort = uiState.sort, onSortChange = onSortChange)
+            }
             AccentTextButton(label = stringResource(R.string.shelf_edit), onClick = onEditClick)
             Spacer(modifier = Modifier.width(4.dp))
             PillButton(
@@ -292,19 +323,78 @@ private fun ShelfTopBar(
 }
 
 /**
- * The covers in a three column grid. While [shuffling] the covers tumble to their mixed up
+ * The sort icon, which opens a menu of the shelf's orders with a check by the current [sort].
+ */
+@Composable
+private fun SortButton(sort: BookSort, onSortChange: (BookSort) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.size(44.dp)) {
+            Icon(
+                imageVector = AppIcons.SORT,
+                contentDescription = stringResource(R.string.shelf_sort),
+                tint = AppTheme.colors.accentText,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            BookSort.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = stringResource(option.labelRes)) },
+                    onClick = {
+                        open = false
+                        onSortChange(option)
+                    },
+                    trailingIcon = {
+                        if (option == sort) {
+                            Icon(
+                                imageVector = AppIcons.CHECK,
+                                contentDescription = null,
+                                tint = AppTheme.colors.accentText,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val BookSort.labelRes: Int
+    get() = when (this) {
+        BookSort.LAST_READ -> R.string.shelf_sort_last_read
+        BookSort.ADDED_NEWEST -> R.string.shelf_sort_added_newest
+        BookSort.ADDED_OLDEST -> R.string.shelf_sort_added_oldest
+        BookSort.TITLE -> R.string.shelf_sort_title
+    }
+
+/**
+ * The covers in a three column grid, ending [bottomPadding] above the bottom of the screen.
+ * A new [sort] goes back to the top. While [shuffling] the covers tumble to their mixed up
  * places, and when it ends they snap back.
  */
 @Composable
 private fun BookGrid(
     books: List<Book>,
+    sort: BookSort,
     editing: Boolean,
     selected: Set<String>,
     shuffling: Boolean,
     onBookClick: (String) -> Unit,
+    bottomPadding: Dp,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
+    // the grid would keep the cover that was at the top in view, which in a new order is
+    // somewhere in the middle; a picked order starts from its first cover instead
+    var shownSort by remember { mutableStateOf(sort) }
+    LaunchedEffect(sort) {
+        if (sort != shownSort) {
+            shownSort = sort
+            gridState.scrollToItem(0)
+        }
+    }
     // moves glide only around a shuffle, so deleting books stays instant
     var settling by remember { mutableStateOf(false) }
     LaunchedEffect(shuffling) {
@@ -332,9 +422,11 @@ private fun BookGrid(
         columns = GridCells.Fixed(3),
         state = gridState,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 128.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = bottomPadding),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalArrangement = Arrangement.spacedBy(22.dp),
+        // with the progress line kept to its text, this leaves rows clearly farther apart than
+        // the columns, so each row's progress line reads as its own
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         items(books, key = { it.id }) { book ->
             BookItem(
@@ -398,7 +490,7 @@ private fun BookItem(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         BookCover(
-            glyph = book.glyph,
+            title = book.title,
             meta = stringResource(R.string.shelf_cover_meta, formatSize(book.sizeBytes)),
             color = AppTheme.colors.coverColors[book.coverColorIndex],
             selected = selected,
@@ -433,6 +525,8 @@ private fun ProgressRow(book: Book, modifier: Modifier = Modifier) {
                 formatPercent(book.progress)
             },
             fontSize = 11.sp,
+            // its own line height: the theme's 24sp would make the row twice as tall as the text
+            lineHeight = 14.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -459,7 +553,7 @@ private fun ShelfScreenPreview() {
         Box(modifier = Modifier.height(844.dp)) {
             ShelfScreen(
                 ShelfUiState(books = PREVIEW_BOOKS, petFound = true),
-                {}, {}, {}, {}, {}, {},
+                {}, {}, {}, {}, {}, {}, {}, {},
             )
         }
     }
@@ -471,7 +565,7 @@ private fun ShelfScreenDarkPreview() {
     KellyReaderTheme {
         ShelfScreen(
             ShelfUiState(books = PREVIEW_BOOKS, petFound = true),
-            {}, {}, {}, {}, {}, {},
+            {}, {}, {}, {}, {}, {}, {}, {},
         )
     }
 }
@@ -480,7 +574,7 @@ private fun ShelfScreenDarkPreview() {
 @Composable
 private fun ShelfScreenEmptyPreview() {
     KellyReaderTheme {
-        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {}, {})
+        ShelfScreen(ShelfUiState(books = emptyList()), {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -490,7 +584,7 @@ private fun ShelfScreenEditPreview() {
     KellyReaderTheme {
         ShelfScreen(
             ShelfUiState(books = PREVIEW_BOOKS, editing = true, selected = setOf("b3", "b6")),
-            {}, {}, {}, {}, {}, {},
+            {}, {}, {}, {}, {}, {}, {}, {},
         )
     }
 }

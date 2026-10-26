@@ -14,7 +14,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -86,6 +86,11 @@ private val LEDGE_HEIGHT = 14.dp
 private val LEDGE_TOP_HEIGHT = 3.dp
 private val LEDGE_SHADE_HEIGHT = 6.dp
 
+/**
+ * How far the ledge reaches up from the navigation bar, shade included.
+ */
+internal val LEDGE_TOTAL_HEIGHT = LEDGE_SHADE_HEIGHT + LEDGE_TOP_HEIGHT + LEDGE_HEIGHT
+
 // ----- bear -----
 
 // sizes are measured on the 208 px square the art was cut on and scale with the bear; the
@@ -129,14 +134,31 @@ private val PET_SHADOW_WIDTH = canvas(160)
 private val PET_SHADOW_HEIGHT = canvas(28)
 
 // the bubble sits a little above the reading bear's head (11 px down the canvas, in the seated
-// pose), a little right of its middle
+// pose), its pointed corner over the head: a little right of the middle of the art, so a little
+// left of it when the bear faces left and the art is mirrored
 private val BUBBLE_LIFT = PET_LIFT - SEAT_SINK + PET_SIZE - canvas(11) + 3.dp
-private val BUBBLE_SHIFT = canvas(120)
-private val BUBBLE_SHAPE = RoundedCornerShape(
+private val HEAD_X = canvas(120)
+private val HEAD_X_MIRRORED = canvas(CANVAS_PX - 120)
+
+// on its feet the bear's head is lower and ahead of its middle: the ears top out 46 px down the
+// canvas and the face is about 157 px across, so hello and bye sit there instead
+private val WALK_BUBBLE_LIFT = PET_LIFT + PET_SIZE - canvas(46) + 3.dp
+private val WALK_HEAD_X = canvas(157)
+private val WALK_HEAD_X_MIRRORED = canvas(CANVAS_PX - 157)
+
+// the bubble opens away from the nearer screen edge: to the right of the head, pointing down
+// to its left, or to the left of it, pointing down to its right
+private val BUBBLE_POINTS_LEFT = RoundedCornerShape(
     topStart = 10.dp,
     topEnd = 10.dp,
     bottomEnd = 10.dp,
     bottomStart = 2.dp,
+)
+private val BUBBLE_POINTS_RIGHT = RoundedCornerShape(
+    topStart = 10.dp,
+    topEnd = 10.dp,
+    bottomEnd = 2.dp,
+    bottomStart = 10.dp,
 )
 
 private val PET_SAVER = listSaver<ShelfPetState, Any>(
@@ -150,6 +172,7 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
             it.readAfterSitting,
             it.idleForMs,
             it.rising,
+            it.leaveToX,
         )
     },
     restore = {
@@ -162,6 +185,7 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
             readAfterSitting = it[5] as Boolean,
             idleForMs = it[6] as Long,
             rising = it.getOrNull(7) as? Boolean ?: false,
+            leaveToX = it.getOrNull(8) as? Float ?: 0f,
         )
     },
 )
@@ -172,13 +196,16 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
  * both and pauses the bear, as in edit mode; the bear also pauses while the screen is not
  * resumed, and stays seated when the system has animations turned off. It keeps its place
  * while a book is open. Until [found] only the ledge shows: three quick knocks on it call the
- * bear, which peeks in from the nearer screen edge and walks on, and [onFound] keeps it.
+ * bear, which peeks in from the nearer screen edge with a hello and walks on, and [onFound] keeps
+ * it. A long press sends it off by the nearer edge with a bye; once it is out of sight [onLeft]
+ * hides it again.
  */
 @Composable
 fun ShelfPet(
     visible: Boolean,
     found: Boolean,
     onFound: () -> Unit,
+    onLeft: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var pet by rememberSaveable(stateSaver = PET_SAVER) {
@@ -188,6 +215,7 @@ fun ShelfPet(
     var knocks by remember { mutableIntStateOf(0) }
     var lastKnockMs by remember { mutableLongStateOf(0L) }
     val onFoundNow by rememberUpdatedState(onFound)
+    val onLeftNow by rememberUpdatedState(onLeft)
     // time into the current paw print trail, below zero while there is none
     val trail = remember { Animatable(-1f) }
     var trailFromLeft by remember { mutableStateOf(true) }
@@ -224,14 +252,21 @@ fun ShelfPet(
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 animate = ValueAnimator.areAnimatorsEnabled()
                 while (true) {
-                    delay(PET_TICK_MS)
+                    delay(pet.tickMs)
                     pet = pet.tick(PET_MARGIN.value, maxX, Random.Default, animate)
                 }
             }
         }
 
+        LaunchedEffect(pet.mode) {
+            // walked out of sight after a long press: hidden until knocked for again
+            if (pet.mode == PetMode.GONE) onLeftNow()
+        }
+
         LaunchedEffect(lifecycleOwner, found) {
-            // only a hidden bear leaves paw prints, and none with animations off
+            // only a hidden bear leaves paw prints, and none with animations off; a trail cut off
+            // by the knocks keeps its last look, so it is cleared before the bear comes in
+            trail.snapTo(-1f)
             if (found) return@LaunchedEffect
             lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 trail.snapTo(-1f)
@@ -349,6 +384,7 @@ fun ShelfPet(
         val label = stringResource(
             if (reading) R.string.shelf_pet_reading_label else R.string.shelf_pet_label,
         )
+        val leaveLabel = stringResource(R.string.shelf_pet_leave_label)
         val frame = pet.frame(animate)
         Image(
             bitmap = frames.getValue(frame),
@@ -367,27 +403,53 @@ fun ShelfPet(
                     contentDescription = label
                     role = Role.Button
                 }
-                .clickable(interactionSource = null, indication = null) { pet = pet.onTap() },
+                .combinedClickable(
+                    interactionSource = null,
+                    indication = null,
+                    onLongClickLabel = leaveLabel,
+                    onLongClick = { pet = pet.onLongPress(ledgeWidth, PET_SIZE.value) },
+                    onClick = { pet = pet.onTap() },
+                ),
         )
-        if (reading) {
+        val bubble = pet.bubble
+        if (bubble != null) {
+            // the bear reads seated, and says hello and bye on its feet
+            val seated = bubble == PetBubble.READING
+            val headX = pet.x.dp + when {
+                seated && pet.facingRight -> HEAD_X
+                seated -> HEAD_X_MIRRORED
+                pet.facingRight -> WALK_HEAD_X
+                else -> WALK_HEAD_X_MIRRORED
+            }
+            val lift = if (seated) BUBBLE_LIFT else WALK_BUBBLE_LIFT
+            val opensRight = headX < maxWidth / 2
+            val shape = if (opensRight) BUBBLE_POINTS_LEFT else BUBBLE_POINTS_RIGHT
+            val text = when (bubble) {
+                PetBubble.READING -> R.string.shelf_pet_bubble
+                PetBubble.HELLO -> R.string.shelf_pet_hello
+                PetBubble.BYE -> R.string.shelf_pet_bye
+            }
             Text(
-                text = stringResource(R.string.shelf_pet_bubble),
+                text = stringResource(text),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(bottom = BUBBLE_LIFT + navigationBar)
+                    .padding(bottom = lift + navigationBar)
                     .layout { measurable, bubbleConstraints ->
-                        // beside the bear's head, but never past the end of the screen
+                        // the pointed corner over the head, the bubble on the side with room;
+                        // kept on screen all the same
                         val bubble = measurable.measure(bubbleConstraints)
-                        val wanted = (pet.x.dp + BUBBLE_SHIFT).roundToPx()
-                        val limit = widthPx - bubble.width - PET_MARGIN.roundToPx()
-                        val x = wanted.coerceAtMost(limit).coerceAtLeast(0)
+                        val head = headX.roundToPx()
+                        val wanted = if (opensRight) head else head - bubble.width
+                        val margin = PET_MARGIN.roundToPx()
+                        val limit = (widthPx - bubble.width - margin).coerceAtLeast(margin)
+                        val x = wanted.coerceIn(margin, limit)
                         layout(bubble.width, bubble.height) { bubble.placeRelative(x, 0) }
                     }
-                    .shadow(elevation = 1.dp, shape = BUBBLE_SHAPE)
-                    .background(MaterialTheme.colorScheme.surface, BUBBLE_SHAPE)
+                    .shadow(elevation = 1.dp, shape = shape)
+                    .background(MaterialTheme.colorScheme.surface, shape)
                     .padding(horizontal = 8.dp, vertical = 3.dp)
                     .clearAndSetSemantics {},
             )

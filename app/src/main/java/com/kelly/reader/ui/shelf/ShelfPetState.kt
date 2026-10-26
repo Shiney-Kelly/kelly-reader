@@ -6,6 +6,11 @@ import kotlin.random.Random
 // ----- timing -----
 
 const val PET_TICK_MS = 125L
+
+// while walking the ticks come faster, so the bear covers ground half again as fast with the
+// same step and the same frames, and its feet still match the ground; every other time in the
+// cycle is counted in milliseconds and keeps its length
+const val PET_WALK_TICK_MS = 80L
 const val PET_SIT_FRAME_MS = 160L
 const val PET_IDLE_FRAME_MS = 500L
 const val PET_READ_FRAME_MS = 360L
@@ -19,8 +24,8 @@ const val PET_READ_MS = 2 * 10 * PET_READ_FRAME_MS
 const val PET_SIT_DOWN_HEIGHT = 0.95f
 const val PET_RISE_MS = 3 * PET_TICK_MS
 const val PET_CROUCH_MS = 2 * PET_TICK_MS
-const val PET_MIN_IDLE_MS = 5_000L
-const val PET_MAX_IDLE_MS = 15_000L
+const val PET_MIN_IDLE_MS = 3_000L
+const val PET_MAX_IDLE_MS = 9_000L
 
 // ----- walking -----
 
@@ -41,6 +46,18 @@ const val PET_ANSWER_MS = 600L
 const val PET_PEEK_MS = 1_200L
 const val PET_PEEK_SHARE = 0.45f
 
+// ----- sending the bear away -----
+
+// a long press sends the bear off by the nearer screen edge at twice its walking pace, two walk
+// frames a tick so its feet keep up; it gets up first if it was sitting
+const val PET_LEAVE_STEPS = 2
+
+// ----- hello and bye -----
+
+// a bubble says hello from the moment the bear peeks in after the knocks, and bye once it is up
+// to leave after a long press, each for a little while as it walks on
+const val PET_GREET_MS = 2_400L
+
 // ----- paw print hint -----
 
 // while the bear is hidden, now and then a trail of faint paw prints crosses the ledge: a print
@@ -58,10 +75,20 @@ const val PAW_NEXT_MAX_MS = 60_000L
 private const val WALK_FRAMES = 8
 private const val SIT_FRAMES = 3
 
+// sinking, then the sit frames played backward: how long getting up takes
+private const val STAND_UP_MS = PET_CROUCH_MS + SIT_FRAMES * PET_SIT_FRAME_MS
+
 /**
- * What the shelf bear is doing.
+ * What the shelf bear is doing. [LEAVE] walks it off the screen after a long press, and once it
+ * is out of sight it is [GONE].
  */
-enum class PetMode { IDLE, STAND_UP, WALK, SIT_DOWN, READ, ENTER }
+enum class PetMode { IDLE, STAND_UP, WALK, SIT_DOWN, READ, ENTER, LEAVE, GONE }
+
+/**
+ * What the bubble over the bear says: [READING] while it reads, [HELLO] as it comes in after the
+ * knocks, [BYE] as it walks off after a long press.
+ */
+enum class PetBubble { READING, HELLO, BYE }
 
 /**
  * One drawing of the bear, facing right. The screen maps each one to its bitmap and mirrors
@@ -92,7 +119,7 @@ private val READ = listOf(
 )
 
 /**
- * A random rest between walks, five to fifteen seconds.
+ * A random rest between walks, three to nine seconds.
  */
 fun nextIdleMs(random: Random): Long = random.nextLong(PET_MIN_IDLE_MS, PET_MAX_IDLE_MS + 1)
 
@@ -145,10 +172,11 @@ fun enteringPet(
  * The shelf bear at one moment. It sits ([PetMode.IDLE]) for [idleForMs], stands up, walks to
  * the far end of the ledge and sits down again. A tap makes it sit and read for a few seconds.
  * Once found it first enters ([PetMode.ENTER]): it peeks in from the screen edge and walks onto
- * the ledge.
+ * the ledge. A long press sends it off again ([PetMode.LEAVE]) until it is [PetMode.GONE].
  * [x] is the bear's left edge in dp from the start of the ledge, [elapsedMs] the time spent in
  * the current mode, [step] the walk frame, [readAfterSitting] remembers a tap that came while
- * it was on its feet, and [rising] marks a seated pose that has just followed sitting down.
+ * it was on its feet, [rising] marks a seated pose that has just followed sitting down, and
+ * [leaveToX] is where the left edge has to reach for a leaving bear to be out of sight.
  */
 data class ShelfPetState(
     val mode: PetMode = PetMode.IDLE,
@@ -159,10 +187,11 @@ data class ShelfPetState(
     val readAfterSitting: Boolean = false,
     val idleForMs: Long = PET_MIN_IDLE_MS,
     val rising: Boolean = false,
+    val leaveToX: Float = 0f,
 ) {
 
     /**
-     * The state one [PET_TICK_MS] later, on a ledge where the bear's left edge may go from
+     * The state one tick ([tickMs]) later, on a ledge where the bear's left edge may go from
      * [minX] to [maxX]. [random] picks the next rest. With [animate] off, as when the system
      * removes animations, the bear never gets up and one that is on its feet sits at once; a
      * tap still makes it read.
@@ -170,7 +199,10 @@ data class ShelfPetState(
     fun tick(minX: Float, maxX: Float, random: Random, animate: Boolean = true): ShelfPetState {
         val high = maxOf(minX, maxX)
         val here = x.coerceIn(minX, high)
-        val time = elapsedMs + PET_TICK_MS
+        val time = elapsedMs + tickMs
+        if (mode == PetMode.GONE) return this
+        // with animations off a bear sent away is gone at once
+        if (mode == PetMode.LEAVE && !animate) return copy(mode = PetMode.GONE)
         if (!animate && mode != PetMode.IDLE && mode != PetMode.READ) {
             return if (readAfterSitting) {
                 copy(
@@ -248,15 +280,49 @@ data class ShelfPetState(
             } else {
                 copy(x = here, elapsedMs = time)
             }
+            // off the ledge on purpose, so x is not held to it
+            PetMode.LEAVE -> if (elapsedMs < STAND_UP_MS) {
+                copy(elapsedMs = time)
+            } else {
+                val next = x + PET_LEAVE_STEPS * if (facingRight) PET_STEP_DP else -PET_STEP_DP
+                val out = if (facingRight) next >= leaveToX else next <= leaveToX
+                if (out) {
+                    copy(mode = PetMode.GONE, x = next, elapsedMs = 0L)
+                } else {
+                    val nextStep = (step + PET_LEAVE_STEPS) % WALK_FRAMES
+                    copy(x = next, elapsedMs = time, step = nextStep)
+                }
+            }
+            PetMode.GONE -> this
         }
     }
 
     /**
+     * The state after a long press on the bear: it turns to the nearer screen edge of a ledge
+     * [ledgeWidth] dp wide and leaves, getting up first unless it is on its feet already; the
+     * bear is [petSize] dp wide. A bear already leaving keeps going.
+     */
+    fun onLongPress(ledgeWidth: Float, petSize: Float): ShelfPetState {
+        if (mode == PetMode.LEAVE || mode == PetMode.GONE) return this
+        val toRight = x + petSize / 2 > ledgeWidth / 2
+        val onFeet = mode == PetMode.WALK || mode == PetMode.ENTER
+        return copy(
+            mode = PetMode.LEAVE,
+            facingRight = toRight,
+            elapsedMs = if (onFeet) STAND_UP_MS else 0L,
+            readAfterSitting = false,
+            rising = false,
+            leaveToX = if (toRight) ledgeWidth else -petSize,
+        )
+    }
+
+    /**
      * The state after a tap on the bear: on its feet it sits down first and then reads, sitting
-     * (or only just sinking to stand up) it reads at once, and a tap while it reads changes
-     * nothing. Tapped while it enters, it reads once it has walked in and sat down.
+     * (or only just sinking to stand up) it reads at once, and a tap while it reads or leaves
+     * changes nothing. Tapped while it enters, it reads once it has walked in and sat down.
      */
     fun onTap(): ShelfPetState = when {
+        mode == PetMode.LEAVE || mode == PetMode.GONE -> this
         mode == PetMode.STAND_UP && elapsedMs < PET_CROUCH_MS -> copy(
             mode = PetMode.READ,
             elapsedMs = 0L,
@@ -284,17 +350,50 @@ data class ShelfPetState(
         return when {
             rising && (mode == PetMode.IDLE || mode == PetMode.READ) && elapsedMs < PET_RISE_MS ->
                 low + (1f - low) * elapsedMs / PET_RISE_MS
-            mode == PetMode.STAND_UP && elapsedMs < PET_CROUCH_MS ->
+            (mode == PetMode.STAND_UP || mode == PetMode.LEAVE) && elapsedMs < PET_CROUCH_MS ->
                 1f - (1f - low) * elapsedMs / PET_CROUCH_MS
             else -> 1f
         }
     }
 
     /**
-     * Whether the bear is drawn: not while it waits to answer a knock.
+     * Whether the bear is taking steps now: walking, walking in after its peek, or walking off
+     * once it has got up.
+     */
+    val onFeet: Boolean
+        get() = when (mode) {
+            PetMode.WALK -> true
+            PetMode.ENTER -> elapsedMs >= PET_ANSWER_MS + PET_PEEK_MS
+            PetMode.LEAVE -> elapsedMs >= STAND_UP_MS
+            else -> false
+        }
+
+    /**
+     * How long the next tick lasts: [PET_WALK_TICK_MS] while the bear is [onFeet], else
+     * [PET_TICK_MS]. The screen waits this long between ticks, and [elapsedMs] grows by it.
+     */
+    val tickMs: Long
+        get() = if (onFeet) PET_WALK_TICK_MS else PET_TICK_MS
+
+    /**
+     * Whether the bear is drawn: not while it waits to answer a knock, nor once it is gone.
      */
     val shown: Boolean
-        get() = !(mode == PetMode.ENTER && elapsedMs < PET_ANSWER_MS)
+        get() = mode != PetMode.GONE && !(mode == PetMode.ENTER && elapsedMs < PET_ANSWER_MS)
+
+    /**
+     * The bubble to show over the bear now, or null for none: reading for as long as it reads,
+     * hello for [PET_GREET_MS] from its peek in, and bye for as long once it is up to leave.
+     */
+    val bubble: PetBubble?
+        get() = when {
+            mode == PetMode.READ -> PetBubble.READING
+            mode == PetMode.ENTER && elapsedMs - PET_ANSWER_MS in 0L until PET_GREET_MS ->
+                PetBubble.HELLO
+            mode == PetMode.LEAVE && elapsedMs - STAND_UP_MS in 0L until PET_GREET_MS ->
+                PetBubble.BYE
+            else -> null
+        }
 
     /**
      * The drawing to show now. With [animate] off the bear holds the first idle or reading
@@ -311,8 +410,14 @@ data class ShelfPetState(
             } else {
                 SIT[SIT_FRAMES - 1 - standIndex]
             }
-            // entering holds the first walk frame while it peeks
-            PetMode.WALK, PetMode.ENTER -> WALK[step % WALK_FRAMES]
+            // leaving gets up the same way, then walks
+            PetMode.LEAVE -> when {
+                elapsedMs >= STAND_UP_MS -> WALK[step % WALK_FRAMES]
+                elapsedMs < PET_CROUCH_MS -> IDLE.first()
+                else -> SIT[SIT_FRAMES - 1 - standIndex]
+            }
+            // entering holds the first walk frame while it peeks; a gone bear is not drawn
+            PetMode.WALK, PetMode.ENTER, PetMode.GONE -> WALK[step % WALK_FRAMES]
             PetMode.SIT_DOWN -> SIT[sitIndex]
             PetMode.READ -> if (animate) READ[loop(READ.size, PET_READ_FRAME_MS)] else READ.first()
         }

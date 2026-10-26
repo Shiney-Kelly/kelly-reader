@@ -69,21 +69,21 @@ fun AddBooksScreen(
     onCopy: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-            AddBooksTopBar(onBack = onBack)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 96.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-            ) {
-                WifiCard(uiState = uiState, onCopy = onCopy)
-                ReceivedSection(uiState = uiState)
-            }
+    // the footer sits under the list rather than over it, so the list always ends right above
+    // it, however tall the footer and the navigation bar under it are
+    Column(modifier = modifier.fillMaxSize().statusBarsPadding()) {
+        AddBooksTopBar(onBack = onBack)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            WifiCard(uiState = uiState, onCopy = onCopy)
+            ReceivedSection(uiState = uiState)
         }
-        Footer(modifier = Modifier.align(Alignment.BottomCenter))
+        Footer()
     }
 }
 
