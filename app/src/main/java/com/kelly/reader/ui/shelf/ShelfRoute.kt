@@ -1,5 +1,6 @@
 package com.kelly.reader.ui.shelf
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -13,7 +14,8 @@ import com.kelly.reader.di.appContainer
 /**
  * The bookshelf screen entry: builds the ViewModel and wires its state to [ShelfScreen].
  * A tap on a book opens it, or toggles its selection while editing. A long shake mixes up the
- * covers for a moment. Three quick knocks on the ledge bring out the hidden shelf bear.
+ * covers for a moment. Three quick knocks on the ledge bring out the hidden shelf bear. Back
+ * leaves edit mode before anything else.
  */
 @Composable
 fun ShelfRoute(
@@ -31,6 +33,7 @@ fun ShelfRoute(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    BackHandler(enabled = uiState.editing) { viewModel.stopEditing() }
     ShakeEffect(onShake = viewModel::onShake)
     ShelfScreen(
         uiState = uiState,
