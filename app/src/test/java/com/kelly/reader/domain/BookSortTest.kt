@@ -35,15 +35,15 @@ class BookSortTest {
     }
 
     @Test
-    fun sort_title_followsLanguageRulesNotCodePoints() {
+    fun sort_titleAToZ_followsLanguageRulesNotCodePoints() {
         // by code point "É" would come after every plain letter and capitals before small ones
-        assertEquals(listOf("b", "d", "c", "a"), ids(BookSort.TITLE))
+        assertEquals(listOf("b", "d", "c", "a"), ids(BookSort.TITLE_A_TO_Z))
     }
 
     @Test
     fun fromKey_knownAndUnknown() {
         assertEquals(BookSort.LAST_READ, BookSort.fromKey("last_read"))
-        assertEquals(BookSort.TITLE, BookSort.fromKey("title"))
+        assertEquals(BookSort.TITLE_A_TO_Z, BookSort.fromKey("title"))
         assertEquals(BookSort.ADDED_OLDEST, BookSort.fromKey("by_color"))
         assertEquals(BookSort.ADDED_OLDEST, BookSort.fromKey(null))
     }

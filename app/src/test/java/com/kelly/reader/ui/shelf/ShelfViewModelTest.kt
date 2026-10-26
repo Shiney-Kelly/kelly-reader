@@ -59,13 +59,13 @@ class ShelfViewModelTest {
     }
 
     @Test
-    fun setSort_title_storedAndBooksReordered() = runTest(dispatcher) {
+    fun setSort_titleAToZ_storedAndBooksReordered() = runTest(dispatcher) {
         val settings = FakeSettingsRepository()
         val viewModel = viewModel(settingsRepository = settings)
-        viewModel.setSort(BookSort.TITLE)
+        viewModel.setSort(BookSort.TITLE_A_TO_Z)
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(BookSort.TITLE, settings.sort.value)
-        assertEquals(BookSort.TITLE, viewModel.uiState.value.sort)
+        assertEquals(BookSort.TITLE_A_TO_Z, settings.sort.value)
+        assertEquals(BookSort.TITLE_A_TO_Z, viewModel.uiState.value.sort)
         assertEquals(listOf("b1", "b3", "b2"), viewModel.uiState.value.books?.map { it.id })
     }
 
