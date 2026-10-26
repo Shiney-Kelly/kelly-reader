@@ -78,7 +78,7 @@ class FakeSettingsRepository(
         petFound.value = found
     }
 
-    val sort = MutableStateFlow(BookSort.ADDED_OLDEST)
+    val sort = MutableStateFlow(BookSort.LAST_READ)
 
     override val shelfSort: Flow<BookSort> = sort
 

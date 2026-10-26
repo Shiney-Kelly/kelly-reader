@@ -35,16 +35,31 @@ class BookSortTest {
     }
 
     @Test
-    fun sort_title_followsLanguageRulesNotCodePoints() {
+    fun sort_titleAToZ_followsLanguageRulesNotCodePoints() {
         // by code point "É" would come after every plain letter and capitals before small ones
-        assertEquals(listOf("b", "d", "c", "a"), ids(BookSort.TITLE))
+        assertEquals(listOf("b", "d", "c", "a"), ids(BookSort.TITLE_A_TO_Z))
+    }
+
+    @Test
+    fun sort_titleZToA_reversesTheTitlesTiesStillOldestFirst() {
+        assertEquals(listOf("a", "c", "d", "b"), ids(BookSort.TITLE_Z_TO_A))
+        val twins = listOf(
+            book("x", "Same", addedAt = 1),
+            book("y", "same", addedAt = 2),
+            book("z", "Other", addedAt = 3),
+        )
+        // a collator at primary strength sees "Same" and "same" as equal
+        val collator = Collator.getInstance(Locale.FRENCH).apply { strength = Collator.PRIMARY }
+        val sorted = BookSort.TITLE_Z_TO_A.sort(twins, collator).map { it.id }
+        assertEquals(listOf("x", "y", "z"), sorted)
     }
 
     @Test
     fun fromKey_knownAndUnknown() {
         assertEquals(BookSort.LAST_READ, BookSort.fromKey("last_read"))
-        assertEquals(BookSort.TITLE, BookSort.fromKey("title"))
-        assertEquals(BookSort.ADDED_OLDEST, BookSort.fromKey("by_color"))
-        assertEquals(BookSort.ADDED_OLDEST, BookSort.fromKey(null))
+        assertEquals(BookSort.TITLE_A_TO_Z, BookSort.fromKey("title"))
+        assertEquals(BookSort.TITLE_Z_TO_A, BookSort.fromKey("title_z_to_a"))
+        assertEquals(BookSort.LAST_READ, BookSort.fromKey("by_color"))
+        assertEquals(BookSort.LAST_READ, BookSort.fromKey(null))
     }
 }

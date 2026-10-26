@@ -25,7 +25,8 @@
     <string name="shelf_sort_last_read">Last read</string>
     <string name="shelf_sort_added_newest">Newest added</string>
     <string name="shelf_sort_added_oldest">Oldest added</string>
-    <string name="shelf_sort_title">Title</string>
+    <string name="shelf_sort_title_a_to_z">Title A–Z</string>
+    <string name="shelf_sort_title_z_to_a">Title Z–A</string>
     <string name="shelf_pet_label">Shelf bear. Tap to make it sit and read</string>
     <string name="shelf_pet_reading_label">Shelf bear is reading</string>
     <string name="shelf_pet_leave_label">Send the bear away</string>

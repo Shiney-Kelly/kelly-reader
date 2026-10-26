@@ -366,7 +366,8 @@ private val BookSort.labelRes: Int
         BookSort.LAST_READ -> R.string.shelf_sort_last_read
         BookSort.ADDED_NEWEST -> R.string.shelf_sort_added_newest
         BookSort.ADDED_OLDEST -> R.string.shelf_sort_added_oldest
-        BookSort.TITLE -> R.string.shelf_sort_title
+        BookSort.TITLE_A_TO_Z -> R.string.shelf_sort_title_a_to_z
+        BookSort.TITLE_Z_TO_A -> R.string.shelf_sort_title_z_to_a
     }
 
 /**

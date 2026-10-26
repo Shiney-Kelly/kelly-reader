@@ -44,9 +44,12 @@ class ShelfViewModelTest {
         Dispatchers.resetMain()
     }
 
+    // most tests read the books in the order they were added, b1 to b3
     private fun viewModel(
         bookRepository: FakeBookRepository = FakeBookRepository(books),
-        settingsRepository: FakeSettingsRepository = FakeSettingsRepository(),
+        settingsRepository: FakeSettingsRepository = FakeSettingsRepository().apply {
+            sort.value = BookSort.ADDED_OLDEST
+        },
     ): ShelfViewModel = ShelfViewModel(bookRepository, settingsRepository).also {
         dispatcher.scheduler.advanceUntilIdle()
     }
@@ -59,13 +62,24 @@ class ShelfViewModelTest {
     }
 
     @Test
-    fun setSort_title_storedAndBooksReordered() = runTest(dispatcher) {
+    fun init_noOrderPicked_lastReadFirstThenNewestAdded() = runTest(dispatcher) {
+        val read = books.map { if (it.id == "b1") it.copy(openedAt = 10L) else it }
+        val viewModel = viewModel(
+            bookRepository = FakeBookRepository(read),
+            settingsRepository = FakeSettingsRepository(),
+        )
+        assertEquals(BookSort.LAST_READ, viewModel.uiState.value.sort)
+        assertEquals(listOf("b1", "b3", "b2"), viewModel.uiState.value.books?.map { it.id })
+    }
+
+    @Test
+    fun setSort_titleAToZ_storedAndBooksReordered() = runTest(dispatcher) {
         val settings = FakeSettingsRepository()
         val viewModel = viewModel(settingsRepository = settings)
-        viewModel.setSort(BookSort.TITLE)
+        viewModel.setSort(BookSort.TITLE_A_TO_Z)
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(BookSort.TITLE, settings.sort.value)
-        assertEquals(BookSort.TITLE, viewModel.uiState.value.sort)
+        assertEquals(BookSort.TITLE_A_TO_Z, settings.sort.value)
+        assertEquals(BookSort.TITLE_A_TO_Z, viewModel.uiState.value.sort)
         assertEquals(listOf("b1", "b3", "b2"), viewModel.uiState.value.books?.map { it.id })
     }
 
