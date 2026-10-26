@@ -3,7 +3,9 @@ package com.kelly.reader.ui.reader
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -184,6 +186,25 @@ class ReaderViewModelTest {
         assertEquals(3, state.pageCount)
         assertEquals("abcd", state.pageText)
         assertEquals("33.33%", state.percentLabel)
+    }
+
+    @Test
+    fun setPageMeasurer_newLayout_pageAndProgressKnownAllAlong() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.setPageMeasurer("k", fixed(4)) // pages at 0, 4, 8
+        dispatcher.scheduler.advanceUntilIdle()
+        val seen = mutableListOf<ReaderUiState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect { seen += it }
+        }
+        viewModel.setPageMeasurer("k3", fixed(3)) // pages at 0, 3, 6, 9
+        dispatcher.scheduler.advanceUntilIdle()
+        // a new count starts with a page whose end is not measured; it must not replace the
+        // old pages, or the page goes blank and the progress drops to 0% for a moment
+        assertTrue(seen.size > 2)
+        assertTrue(seen.all { it.pageKnown })
+        assertTrue(seen.none { it.progress == 0f })
+        assertEquals("25.00%", seen.last().percentLabel)
     }
 
     @Test

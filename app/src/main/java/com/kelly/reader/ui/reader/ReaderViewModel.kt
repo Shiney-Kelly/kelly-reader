@@ -149,10 +149,15 @@ class ReaderViewModel(
             val anchor = _uiState.value.offset
             val fromSpot = anchor in 1 until text.length
             // every result in order, so the pages from the reading spot are complete before
-            // the pages from the start of the book arrive after them
+            // the pages from the start of the book arrive after them; a result shows once it
+            // holds the end of the page being read, as the first ones hold only its start and
+            // would blank the page and drop the progress to its start
             Paginator.paginate(text, measurer, paginationDispatcher, anchor).collect { starts ->
                 last = starts
-                if (!fromSpot || starts[0] != 0) _uiState.update { it.copy(pageStarts = starts) }
+                val holdsPage = starts.last() > _uiState.value.offset
+                if ((!fromSpot || starts[0] != 0) && holdsPage) {
+                    _uiState.update { it.copy(pageStarts = starts) }
+                }
             }
             last?.let { starts ->
                 pageCache.save(bookId, key, starts)

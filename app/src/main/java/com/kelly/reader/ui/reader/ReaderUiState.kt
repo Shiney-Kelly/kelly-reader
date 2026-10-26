@@ -66,6 +66,9 @@ data class ReaderUiState(
     /**
      * Progress in 0..1: by page once the count is known, by chars before that, and the saved
      * progress while there is no text yet, so a big book does not show 0% while it loads.
+     * By page the first page already counts as read, so by chars it runs to the end of the
+     * page when that is known: both measures then agree closely, and a new count after a
+     * settings change does not drop the first page to 0%.
      */
     val progress: Float
         get() {
@@ -73,8 +76,18 @@ data class ReaderUiState(
             return when {
                 count != null && count > 0 -> (pageIndex + 1).toFloat() / count
                 text.isEmpty() -> savedProgress
-                else -> offset.toFloat() / text.length
+                else -> (pageEnd ?: offset).toFloat() / text.length
             }
+        }
+
+    // where the page holding the offset ends, while the pages known say so: not when the
+    // offset lies before the first page known, nor past the last
+    private val pageEnd: Int?
+        get() {
+            val starts = pageStarts ?: return null
+            val index = pageIndex
+            val start = starts.getOrNull(index) ?: return null
+            return if (start <= offset) starts.getOrNull(index + 1) else null
         }
 
     val percentLabel: String
