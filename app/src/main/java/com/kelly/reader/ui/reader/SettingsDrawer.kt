@@ -11,8 +11,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,10 +27,10 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -42,11 +44,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,14 +75,13 @@ private val DRAWER_WIDTH = 310.dp
 private val DRAWER_SHAPE = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
 private val CONTROL_SHAPE = RoundedCornerShape(10.dp)
 private val SWATCH_SHAPE = RoundedCornerShape(12.dp)
-// 14 sp unless the label is too wide for its button, then down to 8 sp; both grow with the
-// system font scale
-private val BUTTON_LABEL_AUTO_SIZE = TextAutoSize.StepBased(
-    minFontSize = 8.sp,
-    maxFontSize = 14.sp,
-    stepSize = 0.5.sp,
-)
+// button labels take 14 sp unless one in the row is too wide for its button, then the whole
+// row steps down together, to 8 sp at least; both grow with the system font scale
+private const val BUTTON_LABEL_MAX_SP = 14f
+private const val BUTTON_LABEL_MIN_SP = 8f
+private const val BUTTON_LABEL_STEP_SP = 0.5f
 private val BUTTON_LABEL_PADDING = 6.dp
+private val BUTTON_GAP = 8.dp
 
 /**
  * What the drawer's controls do. Each call goes to the settings repository through the
@@ -229,15 +233,16 @@ private fun PositionSection(uiState: ReaderUiState, onJump: (Float) -> Unit) {
 @Composable
 private fun AlignmentSection(selected: TextAlignment, onPick: (TextAlignment) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_alignment)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextAlignment.entries.forEach { alignment ->
-                SegmentButton(
-                    label = stringResource(alignment.labelRes),
-                    selected = alignment == selected,
-                    onClick = { onPick(alignment) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        val alignments = TextAlignment.entries
+        val labels = alignments.map { stringResource(it.labelRes) }
+        EvenButtonRow(labels = labels) { index, label, size ->
+            SegmentButton(
+                label = label,
+                selected = alignments[index] == selected,
+                onClick = { onPick(alignments[index]) },
+                modifier = Modifier.weight(1f),
+                labelSize = size,
+            )
         }
     }
 }
@@ -245,15 +250,15 @@ private fun AlignmentSection(selected: TextAlignment, onPick: (TextAlignment) ->
 @Composable
 private fun ReadingModeSection(selected: ReadingMode, onPick: (ReadingMode) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_mode)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ReadingMode.entries.forEach { mode ->
-                SegmentButton(
-                    label = stringResource(mode.labelRes),
-                    selected = mode == selected,
-                    onClick = { onPick(mode) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        val modes = ReadingMode.entries
+        EvenButtonRow(labels = modes.map { stringResource(it.labelRes) }) { index, label, size ->
+            SegmentButton(
+                label = label,
+                selected = modes[index] == selected,
+                onClick = { onPick(modes[index]) },
+                modifier = Modifier.weight(1f),
+                labelSize = size,
+            )
         }
     }
 }
@@ -261,16 +266,64 @@ private fun ReadingModeSection(selected: ReadingMode, onPick: (ReadingMode) -> U
 @Composable
 private fun ProgressLabelSection(selected: ProgressLabel, onPick: (ProgressLabel) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_progress)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ProgressLabel.entries.forEach { label ->
-                SegmentButton(
-                    label = stringResource(label.labelRes),
-                    selected = label == selected,
-                    onClick = { onPick(label) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        val choices = ProgressLabel.entries
+        EvenButtonRow(labels = choices.map { stringResource(it.labelRes) }) { index, label, size ->
+            SegmentButton(
+                label = label,
+                selected = choices[index] == selected,
+                onClick = { onPick(choices[index]) },
+                modifier = Modifier.weight(1f),
+                labelSize = size,
+            )
         }
+    }
+}
+
+/**
+ * A row of equal buttons, one for each of [labels], with every label at one size: the largest
+ * from 14 sp down to 8 sp at which each label fits its button on one line, so one long label
+ * does not leave its row uneven. [styleFor] gives label number i the style its button draws it
+ * with. [button] draws button number i with its label and the size they share.
+ */
+@Composable
+private fun EvenButtonRow(
+    labels: List<String>,
+    styleFor: (Int) -> TextStyle = { TextStyle.Default },
+    button: @Composable RowScope.(index: Int, label: String, labelSize: TextUnit) -> Unit,
+) {
+    BoxWithConstraints {
+        val gaps = BUTTON_GAP * (labels.size - 1)
+        val room = (maxWidth - gaps) / labels.size - BUTTON_LABEL_PADDING * 2
+        val labelSize = rememberSharedLabelSize(labels, labels.indices.map(styleFor), room)
+        Row(horizontalArrangement = Arrangement.spacedBy(BUTTON_GAP)) {
+            labels.forEachIndexed { index, label -> button(index, label, labelSize) }
+        }
+    }
+}
+
+/**
+ * The largest size from 14 sp down to 8 sp, in 0.5 sp steps, at which each of [labels], drawn
+ * semibold in its own of [styles], fits [room] on one line; 8 sp when even that does not fit.
+ */
+@Composable
+private fun rememberSharedLabelSize(
+    labels: List<String>,
+    styles: List<TextStyle>,
+    room: Dp,
+): TextUnit {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(labels, styles, room, density) {
+        // a pixel short of the room, as the buttons share the row's width in whole pixels
+        val roomPx = with(density) { room.toPx() }.toInt() - 1
+        fun fits(size: Float): Boolean = labels.indices.all { index ->
+            val style = styles[index].copy(fontSize = size.sp, fontWeight = FontWeight.SemiBold)
+            val line = measurer.measure(labels[index], style, maxLines = 1, softWrap = false)
+            line.size.width <= roomPx
+        }
+        var size = BUTTON_LABEL_MAX_SP
+        while (size > BUTTON_LABEL_MIN_SP && !fits(size)) size -= BUTTON_LABEL_STEP_SP
+        size.sp
     }
 }
 
@@ -334,15 +387,15 @@ private fun StepButton(
 @Composable
 private fun LineSpacingSection(selected: LineSpacing, onPick: (LineSpacing) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_line_spacing)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LineSpacing.entries.forEach { spacing ->
-                SegmentButton(
-                    label = stringResource(spacing.labelRes),
-                    selected = spacing == selected,
-                    onClick = { onPick(spacing) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        val spacings = LineSpacing.entries
+        EvenButtonRow(labels = spacings.map { stringResource(it.labelRes) }) { index, label, size ->
+            SegmentButton(
+                label = label,
+                selected = spacings[index] == selected,
+                onClick = { onPick(spacings[index]) },
+                modifier = Modifier.weight(1f),
+                labelSize = size,
+            )
         }
     }
 }
@@ -350,19 +403,23 @@ private fun LineSpacingSection(selected: LineSpacing, onPick: (LineSpacing) -> U
 @Composable
 private fun FontSection(selected: ReaderFont, onPick: (ReaderFont) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_font)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ReaderFont.entries.forEach { font ->
-                SegmentButton(
-                    label = stringResource(font.labelRes),
-                    selected = font == selected,
-                    onClick = { onPick(font) },
-                    modifier = Modifier.weight(1f),
-                    style = TextStyle(
-                        fontFamily = if (font == ReaderFont.SERIF) LITERATA else FIGTREE,
-                        fontSize = 15.sp,
-                    ),
-                )
-            }
+        val fonts = ReaderFont.entries
+        // each name in its own face
+        val styles = fonts.map { font ->
+            TextStyle(fontFamily = if (font == ReaderFont.SERIF) LITERATA else FIGTREE)
+        }
+        EvenButtonRow(
+            labels = fonts.map { stringResource(it.labelRes) },
+            styleFor = { styles[it] },
+        ) { index, label, size ->
+            SegmentButton(
+                label = label,
+                selected = fonts[index] == selected,
+                onClick = { onPick(fonts[index]) },
+                modifier = Modifier.weight(1f),
+                labelSize = size,
+                style = styles[index],
+            )
         }
     }
 }
@@ -374,23 +431,21 @@ private fun FontSection(selected: ReaderFont, onPick: (ReaderFont) -> Unit) {
 @Composable
 private fun ThemeSection(selectedKey: String?, onPick: (ReaderTheme?) -> Unit) {
     DrawerSection(label = stringResource(R.string.reader_theme)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ReaderTheme.entries.forEach { theme ->
-                ThemeSwatch(
-                    label = stringResource(theme.labelRes),
-                    background = theme.background,
-                    ink = theme.ink,
-                    selected = theme.key == selectedKey,
-                    onClick = { onPick(theme) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        val themes = ReaderTheme.entries
+        // a swatch draws its label in the surrounding text style, so it is measured in it too
+        val textStyle = LocalTextStyle.current
+        val labels = themes.map { stringResource(it.labelRes) } +
+            stringResource(R.string.reader_theme_auto)
+        EvenButtonRow(labels = labels, styleFor = { textStyle }) { index, label, size ->
+            // the last swatch, after the themes, is Auto
+            val theme = themes.getOrNull(index)
             ThemeSwatch(
-                label = stringResource(R.string.reader_theme_auto),
-                background = MaterialTheme.colorScheme.surface,
-                ink = MaterialTheme.colorScheme.onSurface,
-                selected = selectedKey == null,
-                onClick = { onPick(null) },
+                label = label,
+                background = theme?.background ?: MaterialTheme.colorScheme.surface,
+                ink = theme?.ink ?: MaterialTheme.colorScheme.onSurface,
+                selected = theme?.key == selectedKey,
+                onClick = { onPick(theme) },
+                labelSize = size,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -404,6 +459,7 @@ private fun ThemeSwatch(
     ink: Color,
     selected: Boolean,
     onClick: () -> Unit,
+    labelSize: TextUnit,
     modifier: Modifier = Modifier,
 ) {
     val border = if (selected) AppTheme.colors.accentText else MaterialTheme.colorScheme.outline
@@ -418,9 +474,9 @@ private fun ThemeSwatch(
     ) {
         Text(
             text = label,
+            fontSize = labelSize,
             fontWeight = FontWeight.SemiBold,
             color = ink,
-            autoSize = BUTTON_LABEL_AUTO_SIZE,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = BUTTON_LABEL_PADDING),
@@ -539,7 +595,8 @@ fun DrawerSection(label: String, content: @Composable () -> Unit) {
 }
 
 /**
- * One choice in a row of choices: outlined when off, tinted with an accent border when on.
+ * One choice in a row of choices: outlined when off, tinted with an accent border when on. The
+ * label shows at [labelSize] on one line, cut with an ellipsis if it is still too wide.
  */
 @Composable
 fun SegmentButton(
@@ -547,6 +604,7 @@ fun SegmentButton(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    labelSize: TextUnit = BUTTON_LABEL_MAX_SP.sp,
     style: TextStyle = TextStyle.Default,
 ) {
     val border = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
@@ -563,10 +621,10 @@ fun SegmentButton(
     ) {
         Text(
             text = label,
+            fontSize = labelSize,
             fontWeight = FontWeight.SemiBold,
             color = ink,
             style = style,
-            autoSize = BUTTON_LABEL_AUTO_SIZE,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = BUTTON_LABEL_PADDING),
