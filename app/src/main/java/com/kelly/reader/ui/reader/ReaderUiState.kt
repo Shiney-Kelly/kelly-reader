@@ -105,21 +105,23 @@ data class ReaderUiState(
 
     /**
      * The page number for the label, null while not known: the saved page until the first
-     * pages are in, then the page once the pages before it are measured.
+     * pages are in, then the page once the pages before it are measured, or its page in a full
+     * list held back after a change.
      */
     val labelPage: Int?
         get() = when {
             beforeFirstPages -> savedPage?.number
             pageNumberKnown -> pageIndex + 1
-            else -> null
+            else -> waitingPage?.number
         }
 
     /**
      * The page count for the label, null while not known: the saved count until the first
-     * pages are in, then the count once every page is measured.
+     * pages are in, then the count once every page is measured, or that of a full list held
+     * back after a change.
      */
     val labelPageCount: Int?
-        get() = if (beforeFirstPages) savedPage?.count else pageCount
+        get() = if (beforeFirstPages) savedPage?.count else pageCount ?: waitingPage?.count
 
     val hasPreviousPage: Boolean
         get() = pageIndex > 0

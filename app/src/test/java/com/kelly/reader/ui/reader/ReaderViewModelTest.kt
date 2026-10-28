@@ -297,11 +297,16 @@ class ReaderViewModelTest {
         // the spot, char 4, is on page 2 of the 4 waiting, not 70% by chars to the page end
         assertEquals(SavedPage(2, 4), viewModel.uiState.value.waitingPage)
         assertEquals("50.00%", viewModel.uiState.value.percentLabel)
+        // the page label says the same instead of showing the page as not known
+        assertEquals(2, viewModel.uiState.value.labelPage)
+        assertEquals(4, viewModel.uiState.value.labelPageCount)
 
         viewModel.nextPage()
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(null, viewModel.uiState.value.waitingPage)
         assertEquals("75.00%", viewModel.uiState.value.percentLabel)
+        assertEquals(3, viewModel.uiState.value.labelPage)
+        assertEquals(4, viewModel.uiState.value.labelPageCount)
     }
 
     @Test

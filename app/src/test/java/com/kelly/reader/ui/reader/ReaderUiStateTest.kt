@@ -133,6 +133,21 @@ class ReaderUiStateTest {
     }
 
     @Test
+    fun labelPage_fullListWaiting_isItsPageAndCount() {
+        val book = Book("b1", "Harbor", "b1.txt", 10, text.length, 0)
+        // pages measured from the spot at 4 show; the full list waits with the spot on page 2
+        val waiting = ReaderUiState(
+            book = book,
+            text = text,
+            offset = 4,
+            pageStarts = intArrayOf(4, 7),
+            waitingPage = SavedPage(2, 4),
+        )
+        assertEquals(2, waiting.labelPage)
+        assertEquals(4, waiting.labelPageCount)
+    }
+
+    @Test
     fun percent_textNotReadYet_isSavedProgress() {
         val loading = ReaderUiState(savedProgress = 0.4114f)
         assertEquals("41.14%", loading.percentLabel)
