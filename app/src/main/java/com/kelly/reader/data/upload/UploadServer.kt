@@ -35,8 +35,10 @@ import com.kelly.reader.domain.Transfer
 import com.kelly.reader.domain.TransferFailure
 import com.kelly.reader.domain.TransferStatus
 
-// the page is served at "/", files are posted one at a time to "/upload"
+// the page is served at "/", files are posted one at a time to "/upload", and a post to
+// "/bear" calls the shelf bear
 private const val UPLOAD_PATH = "/upload"
+private const val BEAR_PATH = "/bear"
 private const val FILE_NAME_HEADER = "X-File-Name"
 private const val STOP_GRACE_MS = 500L
 private const val STOP_TIMEOUT_MS = 1_000L
@@ -52,7 +54,8 @@ private class Received(val bytes: Long, val charCount: Int?, val tooBig: Boolean
 /**
  * The Wi-Fi upload server. Serves [page] at the root and takes one file per `POST /upload`,
  * sent as a raw body with the file name URL-encoded in the `X-File-Name` header. Files over
- * [maxBytes] are turned away. Progress and results of every file show up in [transfers].
+ * [maxBytes] are turned away. Progress and results of every file show up in [transfers]. A
+ * `POST /bear`, sent when someone types the bear's name on the page, runs [onBear].
  * Start it with [start], stop it with [stop].
  */
 class UploadServer(
@@ -60,6 +63,7 @@ class UploadServer(
     private val page: String,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val maxBytes: Long = MAX_UPLOAD_MB * BYTES_PER_MB,
+    private val onBear: suspend () -> Unit = {},
 ) {
 
     private val _transfers = MutableStateFlow<List<Transfer>>(emptyList())
@@ -85,6 +89,10 @@ class UploadServer(
             routing {
                 get("/") { call.respondText(page, ContentType.Text.Html) }
                 post(UPLOAD_PATH) { handleUpload(call) }
+                post(BEAR_PATH) {
+                    onBear()
+                    call.respondText("ok")
+                }
             }
         }.start(wait = false)
         port = chosen
