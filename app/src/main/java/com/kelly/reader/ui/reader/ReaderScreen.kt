@@ -88,6 +88,8 @@ data class PageKey(
     val widthPx: Int,
     val heightPx: Int,
     val fontSize: Int,
+    // the phone's own font size, which scales the text size above
+    val fontScale: Float,
     val lineSpacingKey: String,
     val fontKey: String,
 ) {
@@ -96,7 +98,7 @@ data class PageKey(
      * The key as one string, used for the in-memory and on-disk page caches.
      */
     val cacheKey: String
-        get() = "${widthPx}x$heightPx-$fontSize-$lineSpacingKey-$fontKey"
+        get() = "${widthPx}x$heightPx-$fontSize-$fontScale-$lineSpacingKey-$fontKey"
 }
 
 /**
@@ -252,6 +254,7 @@ private fun PageArea(
         widthPx = size.width,
         heightPx = size.height,
         fontSize = style.fontSize.value.toInt(),
+        fontScale = density.fontScale,
         lineSpacingKey = style.lineHeight.value.toString(),
         fontKey = if (style.fontFamily == LITERATA) ReaderFont.SERIF.key else ReaderFont.SANS.key,
     )
