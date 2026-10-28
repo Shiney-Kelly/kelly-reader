@@ -79,6 +79,18 @@ class ReaderUiStateTest {
     }
 
     @Test
+    fun percent_fullListWaiting_goesByItsPage() {
+        // pages measured from the spot at 4 show; the full list waits with the spot on page 2
+        val state = ReaderUiState(
+            text = text,
+            offset = 4,
+            pageStarts = intArrayOf(4, 7),
+            waitingPage = SavedPage(2, 4),
+        )
+        assertEquals("50.00%", state.percentLabel)
+    }
+
+    @Test
     fun percent_beforeDone_pageEndNotKnown_usesTheOffset() {
         // the last page known so far: its end is still being measured
         val last = ReaderUiState(text = text, offset = 8, pageStarts = intArrayOf(0, 4, 8))
