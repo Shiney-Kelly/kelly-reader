@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +70,14 @@ private val DRAWER_WIDTH = 310.dp
 private val DRAWER_SHAPE = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
 private val CONTROL_SHAPE = RoundedCornerShape(10.dp)
 private val SWATCH_SHAPE = RoundedCornerShape(12.dp)
+// 14 sp unless the label is too wide for its button, then down to 8 sp; both grow with the
+// system font scale
+private val BUTTON_LABEL_AUTO_SIZE = TextAutoSize.StepBased(
+    minFontSize = 8.sp,
+    maxFontSize = 14.sp,
+    stepSize = 0.5.sp,
+)
+private val BUTTON_LABEL_PADDING = 6.dp
 
 /**
  * What the drawer's controls do. Each call goes to the settings repository through the
@@ -408,9 +418,12 @@ private fun ThemeSwatch(
     ) {
         Text(
             text = label,
-            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = ink,
+            autoSize = BUTTON_LABEL_AUTO_SIZE,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = BUTTON_LABEL_PADDING),
         )
     }
 }
@@ -550,10 +563,13 @@ fun SegmentButton(
     ) {
         Text(
             text = label,
-            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = ink,
             style = style,
+            autoSize = BUTTON_LABEL_AUTO_SIZE,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = BUTTON_LABEL_PADDING),
         )
     }
 }
