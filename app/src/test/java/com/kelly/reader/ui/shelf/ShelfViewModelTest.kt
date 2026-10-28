@@ -234,8 +234,23 @@ class ShelfViewModelTest {
     }
 
     @Test
-    fun uiState_bearFoundBefore_isShown() = runTest(dispatcher) {
+    fun uiState_bearFoundBefore_isShownWithoutCall() = runTest(dispatcher) {
         val viewModel = viewModel(settingsRepository = FakeSettingsRepository(shelfPetFound = true))
+        assertTrue(viewModel.uiState.value.petFound)
+        assertFalse(viewModel.uiState.value.petCalled)
+    }
+
+    @Test
+    fun uiState_bearFoundElsewhere_isCalledInUntilHandled() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository()
+        val viewModel = viewModel(settingsRepository = settings)
+        settings.petFound.value = true // as the upload page does
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.petFound)
+        assertTrue(viewModel.uiState.value.petCalled)
+
+        viewModel.onPetCalledIn()
+        assertFalse(viewModel.uiState.value.petCalled)
         assertTrue(viewModel.uiState.value.petFound)
     }
 
@@ -248,6 +263,8 @@ class ShelfViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertTrue(settings.petFound.value)
         assertTrue(viewModel.uiState.value.petFound)
+        // the knock already brings it in
+        assertFalse(viewModel.uiState.value.petCalled)
     }
 
     @Test
@@ -259,5 +276,16 @@ class ShelfViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertFalse(settings.petFound.value)
         assertFalse(viewModel.uiState.value.petFound)
+    }
+
+    @Test
+    fun uiState_bearSentAwayThenFoundElsewhere_isCalledIn() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(shelfPetFound = true)
+        val viewModel = viewModel(settingsRepository = settings)
+        viewModel.onPetLeft()
+        dispatcher.scheduler.advanceUntilIdle()
+        settings.petFound.value = true
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.petCalled)
     }
 }

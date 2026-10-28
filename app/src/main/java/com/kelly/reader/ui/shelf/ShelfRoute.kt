@@ -72,6 +72,7 @@ fun ShelfRoute(
         onDeleteClick = viewModel::deleteSelected,
         onPetFound = viewModel::onPetFound,
         onPetLeft = viewModel::onPetLeft,
+        onPetCalledIn = viewModel::onPetCalledIn,
         onSortChange = viewModel::setSort,
         modifier = modifier,
     )

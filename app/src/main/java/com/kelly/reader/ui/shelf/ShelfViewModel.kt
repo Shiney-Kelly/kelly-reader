@@ -51,8 +51,15 @@ class ShelfViewModel(
             }
         }
         viewModelScope.launch {
+            var loaded = false
             settingsRepository.shelfPetFound.collect { found ->
-                _uiState.update { it.copy(petFound = found) }
+                _uiState.update { state ->
+                    // found after the first load while the shelf still had it hidden, so not by
+                    // a knock here: someone called it from elsewhere, such as the upload page
+                    val calledNow = loaded && found && !state.petFound
+                    state.copy(petFound = found, petCalled = state.petCalled || calledNow)
+                }
+                loaded = true
             }
         }
     }
@@ -113,6 +120,13 @@ class ShelfViewModel(
     fun onPetLeft() {
         _uiState.update { it.copy(petFound = false) }
         viewModelScope.launch { settingsRepository.setShelfPetFound(false) }
+    }
+
+    /**
+     * Clears [ShelfUiState.petCalled] once the shelf has called the bear in.
+     */
+    fun onPetCalledIn() {
+        _uiState.update { it.copy(petCalled = false) }
     }
 
     /**
