@@ -198,14 +198,17 @@ private val PET_SAVER = listSaver<ShelfPetState, Any>(
  * while a book is open. Until [found] only the ledge shows: three quick knocks on it call the
  * bear, which peeks in from the nearer screen edge with a hello and walks on, and [onFound] keeps
  * it. A long press sends it off by the nearer edge with a bye; once it is out of sight [onLeft]
- * hides it again.
+ * hides it again. [called] says it was found elsewhere: it comes in the same way from a random
+ * side, and [onCalledIn] says so.
  */
 @Composable
 fun ShelfPet(
     visible: Boolean,
     found: Boolean,
+    called: Boolean,
     onFound: () -> Unit,
     onLeft: () -> Unit,
+    onCalledIn: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var pet by rememberSaveable(stateSaver = PET_SAVER) {
@@ -216,6 +219,7 @@ fun ShelfPet(
     var lastKnockMs by remember { mutableLongStateOf(0L) }
     val onFoundNow by rememberUpdatedState(onFound)
     val onLeftNow by rememberUpdatedState(onLeft)
+    val onCalledInNow by rememberUpdatedState(onCalledIn)
     // time into the current paw print trail, below zero while there is none
     val trail = remember { Animatable(-1f) }
     var trailFromLeft by remember { mutableStateOf(true) }
@@ -261,6 +265,18 @@ fun ShelfPet(
         LaunchedEffect(pet.mode) {
             // walked out of sight after a long press: hidden until knocked for again
             if (pet.mode == PetMode.GONE) onLeftNow()
+        }
+
+        LaunchedEffect(called) {
+            // found elsewhere, such as on the upload page: it peeks in and walks on as after
+            // the knocks, from whichever side
+            if (!called) return@LaunchedEffect
+            pet = enteringPet(
+                fromLeft = Random.nextBoolean(),
+                ledgeWidth = ledgeWidth,
+                petSize = PET_SIZE.value,
+            )
+            onCalledInNow()
         }
 
         LaunchedEffect(lifecycleOwner, found) {

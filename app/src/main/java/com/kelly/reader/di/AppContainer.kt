@@ -44,9 +44,14 @@ class AppContainer(context: Context) {
     }
 
     /**
-     * A fresh upload server, not started. The Add books screen owns its lifetime.
+     * A fresh upload server, not started. The Add books screen owns its lifetime. Typing the
+     * bear's name on its page finds the shelf bear.
      */
-    fun newUploadServer(): UploadServer = UploadServer(bookRepository, uploadPage)
+    fun newUploadServer(): UploadServer = UploadServer(
+        bookRepository = bookRepository,
+        page = uploadPage,
+        onBear = { settingsRepository.setShelfPetFound(true) },
+    )
 
     /**
      * The Wi-Fi IPv4 address, or null off Wi-Fi, updated as the network changes.

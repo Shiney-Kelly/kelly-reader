@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.Socket
 import java.net.URL
 import java.net.URLEncoder
+import java.util.concurrent.atomic.AtomicInteger
 
 import com.kelly.reader.data.FakeBookRepository
 import com.kelly.reader.domain.TransferFailure
@@ -214,6 +215,26 @@ class UploadServerTest {
         val file = repository.files.single()
         assertFalse(file.exists())
         assertFalse(File(file.path + ".part").exists())
+    }
+
+    @Test
+    fun post_bear_callsTheBearAndAddsNothing() {
+        val calls = AtomicInteger()
+        val bear = UploadServer(repository, page = "", onBear = { calls.incrementAndGet() })
+        val bearPort = bear.start(preferredPort = 0)
+        try {
+            val connection = URL("http://127.0.0.1:$bearPort/bear").openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.outputStream.close()
+            assertEquals(200, connection.responseCode)
+            connection.disconnect()
+            assertEquals(1, calls.get())
+            assertTrue(bear.transfers.value.isEmpty())
+            assertTrue(repository.books.value.isEmpty())
+        } finally {
+            bear.stop()
+        }
     }
 
     @Test

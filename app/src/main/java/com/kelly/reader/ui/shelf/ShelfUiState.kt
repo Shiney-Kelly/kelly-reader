@@ -8,6 +8,8 @@ import com.kelly.reader.domain.BookSort
  * does not flash before the first load, and comes in [sort] order. [shuffledIds] holds the
  * mixed up order of the covers for a moment after a shake, and is null the rest of the time.
  * [petFound] tells whether someone has found the shelf bear; until then only its ledge shows.
+ * [petCalled] turns true when it was found somewhere else than on the ledge, such as on the
+ * upload page, and stays so until the shelf has called it in.
  */
 data class ShelfUiState(
     val books: List<Book>? = null,
@@ -16,6 +18,7 @@ data class ShelfUiState(
     val selected: Set<String> = emptySet(),
     val shuffledIds: List<String>? = null,
     val petFound: Boolean = false,
+    val petCalled: Boolean = false,
 ) {
 
     val isEmpty: Boolean
