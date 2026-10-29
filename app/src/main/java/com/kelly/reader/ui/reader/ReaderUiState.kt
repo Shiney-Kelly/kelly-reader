@@ -11,7 +11,9 @@ import com.kelly.reader.domain.formatPercent
  * [pageStarts] is null until the first page has been measured, and [paginationDone] turns
  * true once every page is known. [isRtl] says the text reads right to left. [savedProgress] is
  * the progress saved for the book, and [savedPage] its page from the saved page list of this
- * layout when there is one; both show while the text is still being read.
+ * layout when there is one; both show while the text is still being read. [waitingPage] is
+ * the page of [offset] in the full page list held back until the next page turn after a
+ * change, so the progress can go by page before that list shows.
  */
 data class ReaderUiState(
     val book: Book? = null,
@@ -22,6 +24,7 @@ data class ReaderUiState(
     val offset: Int = 0,
     val pageStarts: IntArray? = null,
     val paginationDone: Boolean = false,
+    val waitingPage: SavedPage? = null,
     val settings: ReaderSettings = ReaderSettings(),
 ) {
 
@@ -68,13 +71,16 @@ data class ReaderUiState(
      * progress while there is no text yet, so a big book does not show 0% while it loads.
      * By page the first page already counts as read, so by chars it runs to the end of the
      * page when that is known: both measures then agree closely, and a new count after a
-     * settings change does not drop the first page to 0%.
+     * settings change does not drop the first page to 0%. A full list held back after a
+     * change already counts by page.
      */
     val progress: Float
         get() {
             val count = pageCount
+            val waiting = waitingPage
             return when {
                 count != null && count > 0 -> (pageIndex + 1).toFloat() / count
+                waiting != null && waiting.count > 0 -> waiting.number.toFloat() / waiting.count
                 text.isEmpty() -> savedProgress
                 else -> (pageEnd ?: offset).toFloat() / text.length
             }
@@ -99,21 +105,23 @@ data class ReaderUiState(
 
     /**
      * The page number for the label, null while not known: the saved page until the first
-     * pages are in, then the page once the pages before it are measured.
+     * pages are in, then the page once the pages before it are measured, or its page in a full
+     * list held back after a change.
      */
     val labelPage: Int?
         get() = when {
             beforeFirstPages -> savedPage?.number
             pageNumberKnown -> pageIndex + 1
-            else -> null
+            else -> waitingPage?.number
         }
 
     /**
      * The page count for the label, null while not known: the saved count until the first
-     * pages are in, then the count once every page is measured.
+     * pages are in, then the count once every page is measured, or that of a full list held
+     * back after a change.
      */
     val labelPageCount: Int?
-        get() = if (beforeFirstPages) savedPage?.count else pageCount
+        get() = if (beforeFirstPages) savedPage?.count else pageCount ?: waitingPage?.count
 
     val hasPreviousPage: Boolean
         get() = pageIndex > 0
@@ -133,6 +141,7 @@ data class ReaderUiState(
             offset == other.offset &&
             pageStarts.contentEquals(other.pageStarts) &&
             paginationDone == other.paginationDone &&
+            waitingPage == other.waitingPage &&
             settings == other.settings
     }
 
@@ -145,12 +154,13 @@ data class ReaderUiState(
         result = 31 * result + offset
         result = 31 * result + (pageStarts?.contentHashCode() ?: 0)
         result = 31 * result + paginationDone.hashCode()
+        result = 31 * result + (waitingPage?.hashCode() ?: 0)
         result = 31 * result + settings.hashCode()
         return result
     }
 }
 
 /**
- * Page [number] of [count], from the saved page list of a layout.
+ * Page [number] of [count], from a full page list of a layout: a saved one, or one held back.
  */
 data class SavedPage(val number: Int, val count: Int)

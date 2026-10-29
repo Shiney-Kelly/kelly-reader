@@ -292,6 +292,33 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun setPageMeasurer_newKeyMidBook_percentByPageWhileNewPagesWait() = runTest(dispatcher) {
+        val viewModel = onSecondPageWithThreePerPage()
+        // the spot, char 4, is on page 2 of the 4 waiting, not 70% by chars to the page end
+        assertEquals(SavedPage(2, 4), viewModel.uiState.value.waitingPage)
+        assertEquals("50.00%", viewModel.uiState.value.percentLabel)
+        // the page label says the same instead of showing the page as not known
+        assertEquals(2, viewModel.uiState.value.labelPage)
+        assertEquals(4, viewModel.uiState.value.labelPageCount)
+
+        viewModel.nextPage()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.waitingPage)
+        assertEquals("75.00%", viewModel.uiState.value.percentLabel)
+        assertEquals(3, viewModel.uiState.value.labelPage)
+        assertEquals(4, viewModel.uiState.value.labelPageCount)
+    }
+
+    @Test
+    fun setPageMeasurer_changedAgainWhileNewPagesWait_dropsTheWaitingPage() = runTest(dispatcher) {
+        val viewModel = onSecondPageWithThreePerPage()
+        viewModel.setPageMeasurer("four", fixed(4)) // counted before, so its pages show at once
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.waitingPage)
+        assertEquals("66.67%", viewModel.uiState.value.percentLabel)
+    }
+
+    @Test
     fun previousPage_newPagesWaiting_showsPageBeforeSpot() = runTest(dispatcher) {
         val viewModel = onSecondPageWithThreePerPage()
         viewModel.previousPage()

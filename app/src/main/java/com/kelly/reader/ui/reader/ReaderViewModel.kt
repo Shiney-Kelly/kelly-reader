@@ -133,7 +133,7 @@ class ReaderViewModel(
         val text = _uiState.value.text
         if (_uiState.value.book == null) return
         paginationJob?.cancel()
-        waitingStarts = null
+        holdBack(null)
         cache[key]?.let { starts ->
             _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
             return
@@ -165,7 +165,7 @@ class ReaderViewModel(
                 // in a book measured from the reading spot, the pages from the start would move
                 // the text being read, so they wait for the next page turn unless there is none
                 if (fromSpot && _uiState.value.hasNextPage) {
-                    waitingStarts = starts
+                    holdBack(starts)
                 } else {
                     finishPagination(key, starts)
                 }
@@ -259,8 +259,21 @@ class ReaderViewModel(
     private fun showWaitingPages(): Boolean {
         val starts = waitingStarts ?: return false
         waitingStarts = null
-        _uiState.update { it.copy(pageStarts = starts, paginationDone = true) }
+        _uiState.update { it.copy(pageStarts = starts, paginationDone = true, waitingPage = null) }
         return true
+    }
+
+    /**
+     * Holds [starts], the pages from the start of the book, back until the next page turn, or
+     * drops the ones held with null. The page of the reading spot in them shows at once, so
+     * the progress goes by page already.
+     */
+    private fun holdBack(starts: IntArray?) {
+        waitingStarts = starts
+        val page = starts?.let {
+            SavedPage(Paginator.pageIndexFor(it, _uiState.value.offset) + 1, it.size)
+        }
+        _uiState.update { it.copy(waitingPage = page) }
     }
 
     private fun moveTo(offset: Int) {
